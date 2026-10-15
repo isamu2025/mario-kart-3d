@@ -293,6 +293,27 @@ class SoundSystem {
     osc.stop(now + duration + 0.05);
   }
 
+  // 7.5 新圈数提示号角 (Lap Chime Fanfare)
+  playLapSound(isFinal = false) {
+    if (!this.isInitialized || !this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    // 经典马里奥大奖赛进圈号角 C5-E5-G5-C6，Final Lap 采用更高昂的 D5-G5-A5-D6
+    const notes = isFinal ? [587.33, 783.99, 880.00, 1174.66] : [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+      gain.gain.setValueAtTime(0.3, now + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.38);
+    });
+  }
+
   // 8. 冲过终点/升级音效
   playVictory() {
     if (!this.isInitialized || !this.ctx || this.isMuted) return;

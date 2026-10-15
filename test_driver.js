@@ -253,13 +253,87 @@ async function runTests() {
   // 截屏 4: 切换后视角
   await client.screenshot('test_screen_camera_mode.png');
 
+  // 测试 10: 跨过终点线进入第 2 圈（验证 sound.playLapSound 与圈数递增不卡死）
+  console.log('▶ 模拟完成第 1 圈并跨过发车拱门终点线...');
+  await client.eval(`
+    (() => {
+      for (let i = 1; i < window.game.track.checkpoints.length; i++) {
+        window.game.physics.lastCheckpoint = i;
+      }
+      const cp0 = window.game.track.checkpoints[0];
+      window.game.physics.position.x = cp0.position.x;
+      window.game.physics.position.z = cp0.position.y;
+      window.game.physics.speed = 35.0;
+    })()
+  `);
+  await sleep(1000);
+
+  const afterLap1State = await client.eval(`({
+    lap: window.game.physics.currentLap,
+    gameState: window.game.gameState,
+    banner: document.getElementById('alert-banner')?.innerText
+  })`);
+  console.log('跨过第 1 圈后状态:', afterLap1State);
+  const lap1Passed = afterLap1State.lap === 2 && client.errors.length === 0;
+  console.log(`[测试 10] 第 1 圈冲线结算与第 2 圈切换 (进入 Lap ${afterLap1State.lap}, 横幅: ${afterLap1State.banner}): ${lap1Passed ? 'PASS' : 'FAIL'}`);
+
+  // 测试 11: 跨过第 2 圈进入 Final Lap 3
+  console.log('▶ 模拟完成第 2 圈并进入 Final Lap...');
+  await client.eval(`
+    (() => {
+      for (let i = 1; i < window.game.track.checkpoints.length; i++) {
+        window.game.physics.lastCheckpoint = i;
+      }
+      const cp0 = window.game.track.checkpoints[0];
+      window.game.physics.position.x = cp0.position.x;
+      window.game.physics.position.z = cp0.position.y;
+    })()
+  `);
+  await sleep(1000);
+
+  const afterLap2State = await client.eval(`({
+    lap: window.game.physics.currentLap,
+    gameState: window.game.gameState,
+    banner: document.getElementById('alert-banner')?.innerText
+  })`);
+  console.log('跨过第 2 圈后状态:', afterLap2State);
+  const lap2Passed = afterLap2State.lap === 3 && client.errors.length === 0;
+  console.log(`[测试 11] Final Lap 冲线切换 (进入 Lap ${afterLap2State.lap}, 横幅: ${afterLap2State.banner}): ${lap2Passed ? 'PASS' : 'FAIL'}`);
+
+  // 测试 12: 跨过第 3 圈完赛并弹出 Victory 结算框
+  console.log('▶ 模拟完成第 3 圈冲过终点大获全胜...');
+  await client.eval(`
+    (() => {
+      for (let i = 1; i < window.game.track.checkpoints.length; i++) {
+        window.game.physics.lastCheckpoint = i;
+      }
+      const cp0 = window.game.track.checkpoints[0];
+      window.game.physics.position.x = cp0.position.x;
+      window.game.physics.position.z = cp0.position.y;
+    })()
+  `);
+  await sleep(1000);
+
+  const finishState = await client.eval(`({
+    gameState: window.game.gameState,
+    modalVisible: document.getElementById('finish-modal')?.style.display === 'flex',
+    totalTime: document.getElementById('res-total-time')?.innerText,
+    bestLap: document.getElementById('res-best-lap')?.innerText
+  })`);
+  console.log('完赛后领奖台状态:', finishState);
+  const finishPassed = finishState.gameState === 'FINISHED' && finishState.modalVisible && client.errors.length === 0;
+  console.log(`[测试 12] 全圈大奖赛完赛结算与领奖台弹窗 (最佳圈速: ${finishState.bestLap}, 总用时: ${finishState.totalTime}): ${finishPassed ? 'PASS' : 'FAIL'}`);
+
+  // 截屏 5: 完赛结算领奖台
+  await client.screenshot('test_screen_victory.png');
+
   // 清理退出
   client.close();
   edgeProc.kill();
 
-  const allPassed = gasPassed && rightTurnPassed && leftTurnPassed && brakePassed && resetPassed && driftPassed && camPassed;
+  const allPassed = gasPassed && rightTurnPassed && leftTurnPassed && brakePassed && resetPassed && driftPassed && camPassed && lap1Passed && lap2Passed && finishPassed && client.errors.length === 0;
   console.log('\n=======================================');
-  console.log(`本地端到端测试总结: ${allPassed ? '🎉 全部 9 项实操用例 100% 通过！' : '❌ 部分测试未通过'}`);
+  console.log(`本地端到端测试总结: ${allPassed ? '🎉 全部 12 项实操与结算用例 100% 通过！' : '❌ 部分测试未通过'}`);
   console.log('=======================================\n');
 
   if (!allPassed) {

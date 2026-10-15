@@ -362,89 +362,94 @@ class Game {
 
   // 5. 核心帧渲染循环
   render() {
-    const rawDelta = this.clock.getDelta();
-    const delta = Math.max(0.001, Math.min(0.05, isNaN(rawDelta) ? 0.016 : rawDelta));
-
-    if (this.gameState === 'COUNTDOWN') {
-      this.countdownTimer -= delta;
-      // 允许玩家在发车线上轻点油门试转
-      const activeInputs = { ...this.inputs, left: false, right: false, drift: false };
-      const oldPos = this.physics.position.clone();
-      this.physics.update(activeInputs, this.track, delta);
-      this.physics.position.copy(oldPos);
-    } else if (this.gameState === 'RACING') {
-      this.physics.update(this.inputs, this.track, delta);
-
-      if (this.physics.lapEvent) {
-        if (this.physics.lapEvent === 'new_lap') {
-          if (this.physics.currentLap === 3) {
-            this.showAlertBanner('⚠️ FINAL LAP! ⚠️', 1.8);
-            sound.playLapSound();
-          } else {
-            this.showAlertBanner(`LAP ${this.physics.currentLap} / 3`, 1.2);
-            sound.playLapSound();
-          }
-        } else if (this.physics.lapEvent === 'race_finished') {
-          this.onRaceFinished();
-        }
-        this.physics.lapEvent = null;
-      }
-    } else if (this.gameState === 'FINISHED') {
-      this.inputs.throttle = false;
-      this.inputs.brake = true;
-      this.physics.update(this.inputs, this.track, delta);
-    }
-
-    // 更新各子系统
-    this.track.update(delta);
-    this.environment.update(delta, this.physics.position);
-    this.kart.update(this.physics, delta);
-    this.particles.update(delta);
-
-    // 碰撞音效与火花
-    if (this.physics.collisionEvents.length > 0) {
-      this.physics.collisionEvents.forEach(evt => {
-        sound.playCrash(evt.intensity);
-        this.particles.emitCollisionSparks(evt.position, evt.normal, 14);
-        this.cameraShake = Math.min(0.5, 0.15 + evt.intensity * 0.25);
-      });
-    }
-
-    // 道具与金币事件
-    if (this.physics.coinPickupEvent) {
-      sound.playCoin();
-      this.particles.emitCoinBurst(this.physics.coinPickupEvent);
-      this.physics.coinPickupEvent = null;
-    }
-    if (this.physics.itemBoxPickupEvent) {
-      sound.playItemBox();
-      this.particles.emitBoxShatter(this.physics.itemBoxPickupEvent);
-      this.physics.itemBoxPickupEvent = null;
-      this.updateItemHUD();
-    }
-    if (this.physics.boostEvent) {
-      sound.playBoost();
-      this.cameraShake = 0.25;
-      this.physics.boostEvent = null;
-    }
-
-    // 粒子发射：排气与漂移火花
-    this._handleParticleEmissions(delta);
-
-    // 音频动态合成（引擎与胎噪）
-    const speedRatio = this.physics.speed / this.physics.maxSpeed;
-    sound.updateEngine(speedRatio, this.inputs.throttle, this.inputs.brake);
-    sound.updateDriftSound(this.physics.isDrifting ? 1.0 : (this.inputs.brake && Math.abs(this.physics.speed) > 10 ? 0.7 : 0.0));
-
-    // 摄像机平滑跟踪
-    this.updateCamera(delta);
-
-    // 同步 2D 小地图与 HUD
-    this.drawMinimap();
-    this.updateHUD();
-
-    this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(() => this.render());
+
+    try {
+      const rawDelta = this.clock.getDelta();
+      const delta = Math.max(0.001, Math.min(0.05, isNaN(rawDelta) ? 0.016 : rawDelta));
+
+      if (this.gameState === 'COUNTDOWN') {
+        this.countdownTimer -= delta;
+        // 允许玩家在发车线上轻点油门试转
+        const activeInputs = { ...this.inputs, left: false, right: false, drift: false };
+        const oldPos = this.physics.position.clone();
+        this.physics.update(activeInputs, this.track, delta);
+        this.physics.position.copy(oldPos);
+      } else if (this.gameState === 'RACING') {
+        this.physics.update(this.inputs, this.track, delta);
+
+        if (this.physics.lapEvent) {
+          if (this.physics.lapEvent === 'new_lap') {
+            if (this.physics.currentLap === 3) {
+              this.showAlertBanner('⚠️ FINAL LAP! ⚠️', 1.8);
+              if (sound && sound.playLapSound) sound.playLapSound(true);
+            } else {
+              this.showAlertBanner(`LAP ${this.physics.currentLap} / 3`, 1.2);
+              if (sound && sound.playLapSound) sound.playLapSound(false);
+            }
+          } else if (this.physics.lapEvent === 'race_finished') {
+            this.onRaceFinished();
+          }
+          this.physics.lapEvent = null;
+        }
+      } else if (this.gameState === 'FINISHED') {
+        this.inputs.throttle = false;
+        this.inputs.brake = true;
+        this.physics.update(this.inputs, this.track, delta);
+      }
+
+      // 更新各子系统
+      this.track.update(delta);
+      this.environment.update(delta, this.physics.position);
+      this.kart.update(this.physics, delta);
+      this.particles.update(delta);
+
+      // 碰撞音效与火花
+      if (this.physics.collisionEvents.length > 0) {
+        this.physics.collisionEvents.forEach(evt => {
+          if (sound && sound.playCrash) sound.playCrash(evt.intensity);
+          this.particles.emitCollisionSparks(evt.position, evt.normal, 14);
+          this.cameraShake = Math.min(0.5, 0.15 + evt.intensity * 0.25);
+        });
+      }
+
+      // 道具与金币事件
+      if (this.physics.coinPickupEvent) {
+        if (sound && sound.playCoin) sound.playCoin();
+        this.particles.emitCoinBurst(this.physics.coinPickupEvent);
+        this.physics.coinPickupEvent = null;
+      }
+      if (this.physics.itemBoxPickupEvent) {
+        if (sound && sound.playItemBox) sound.playItemBox();
+        this.particles.emitBoxShatter(this.physics.itemBoxPickupEvent);
+        this.physics.itemBoxPickupEvent = null;
+        this.updateItemHUD();
+      }
+      if (this.physics.boostEvent) {
+        if (sound && sound.playBoost) sound.playBoost();
+        this.cameraShake = 0.25;
+        this.physics.boostEvent = null;
+      }
+
+      // 粒子发射：排气与漂移火花
+      this._handleParticleEmissions(delta);
+
+      // 音频动态合成（引擎与胎噪）
+      const speedRatio = this.physics.speed / this.physics.maxSpeed;
+      if (sound && sound.updateEngine) sound.updateEngine(speedRatio, this.inputs.throttle, this.inputs.brake);
+      if (sound && sound.updateDriftSound) sound.updateDriftSound(this.physics.isDrifting ? 1.0 : (this.inputs.brake && Math.abs(this.physics.speed) > 10 ? 0.7 : 0.0));
+
+      // 摄像机平滑跟踪
+      this.updateCamera(delta);
+
+      // 同步 2D 小地图与 HUD
+      this.drawMinimap();
+      this.updateHUD();
+
+      this.renderer.render(this.scene, this.camera);
+    } catch (err) {
+      console.error('Frame render loop guarded error:', err);
+    }
   }
 
   _handleParticleEmissions(delta) {
