@@ -2,7 +2,6 @@ import * as THREE from 'three';
 
 export class KartPhysics {
   constructor(config = {}) {
-    // 物理参数
     this.maxSpeed = config.maxSpeed || 42.0;            // ~151 km/h
     this.maxReverseSpeed = config.maxReverseSpeed || -12.0;
     this.turboSpeed = config.turboSpeed || 62.0;        // ~223 km/h
@@ -12,31 +11,31 @@ export class KartPhysics {
     this.rollingDrag = config.rollingDrag || 8.5;
     this.airDragCoeff = config.airDragCoeff || 0.0035;
     this.turnRate = config.turnRate || 2.5;
-    this.collisionRadius = 1.30; // 碰撞胶囊半径
+    this.collisionRadius = 1.30;
 
     // 状态量
-    this.position = new THREE.Vector3(0, 0, -60);       // 发车线默认原点
-    this.yaw = 0;                                       // 偏航角 (0 = 朝向 +Z 顺着大直道)
-    this.speed = 0;                                     // 当前前进线速度 (m/s)
-    this.velocity = new THREE.Vector2(0, 0);            // 水平动量矢量
-    this.steerAngle = 0;                                // 前轮偏转角 (-0.52 ~ +0.52 rad)
-    this.lateralG = 0;                                  // 横向加速度（用于悬挂倾角）
-    this.accelG = 0;                                    // 纵向加速度（用于起步/刹车俯仰）
+    this.position = new THREE.Vector3(0, 0, -80);
+    this.yaw = 0;
+    this.speed = 0;
+    this.velocity = new THREE.Vector2(0, 0);
+    this.steerAngle = 0;
+    this.lateralG = 0;
+    this.accelG = 0;
 
-    // 漂移与 Mini-Turbo 状态
+    // 漂移与 Mini-Turbo
     this.isDrifting = false;
-    this.driftDirection = 0;                            // -1 = 左漂, 1 = 右漂
-    this.driftTimer = 0;                                // 漂移蓄力时间
-    this.driftStage = 0;                                // 0: 无, 1: 蓝火, 2: 橙火
-    this.isBoosting = false;                            // 是否处于氮气推进中
+    this.driftDirection = 0;
+    this.driftTimer = 0;
+    this.driftStage = 0;
+    this.isBoosting = false;
     this.boostTimer = 0;
     this.boostStage = 0;
 
     // 道具与金币
-    this.coins = 0;                                     // 收集硬币数（上限 10）
-    this.hasItem = null;                                // 当前持有道具 ('mushroom', 'star')
+    this.coins = 0;
+    this.hasItem = null;
 
-    // 比赛进度与防作弊检查点
+    // 圈数与检查点
     this.currentLap = 1;
     this.totalLaps = 3;
     this.lapFinished = false;
@@ -45,17 +44,15 @@ export class KartPhysics {
     this.bestLapTime = 0;
     this.totalRaceTime = 0;
 
-    // 碰撞检测事件（给外部粒子与音效读取）
     this.collisionEvents = [];
   }
 
-  // 重置车辆到赛道安全位置与朝向
   resetToTrack(pos = null, yaw = 0) {
     if (pos) {
       this.position.copy(pos);
       this.yaw = isNaN(yaw) ? 0 : yaw;
     } else {
-      this.position.set(0, 0.05, -60);
+      this.position.set(0, 0.05, -80);
       this.yaw = 0;
     }
     this.speed = 0;
@@ -68,18 +65,15 @@ export class KartPhysics {
     this.boostTimer = 0;
   }
 
-  // 核心物理逐帧步进
   update(inputs, track, rawDelta) {
     this.collisionEvents = [];
     const delta = (!rawDelta || isNaN(rawDelta) || rawDelta <= 0.0001) ? 0.016 : Math.min(0.08, rawDelta);
 
-    // 1. 计时器更新
     if (!this.lapFinished) {
       this.lapTimer += delta;
       this.totalRaceTime += delta;
     }
 
-    // 2. 加速带/蘑菇推进计时器
     if (this.isBoosting) {
       this.boostTimer -= delta;
       if (this.boostTimer <= 0) {
@@ -88,24 +82,21 @@ export class KartPhysics {
       }
     }
 
-    // 3. 计算极限速度（金币增益 + 氮气增益）
-    const coinFactor = 1.0 + Math.min(10, this.coins) * 0.012; // 顶多增益 12%
+    const coinFactor = 1.0 + Math.min(10, this.coins) * 0.012;
     let curMaxSpeed = this.maxSpeed * coinFactor;
     if (this.isBoosting) {
       curMaxSpeed = this.turboSpeed;
     }
 
-    // 4. 输入驱动力与制动力
     const throttle = inputs.throttle ? 1.0 : 0.0;
     const brake = inputs.brake ? 1.0 : 0.0;
+    // inputs.left = 向左转向 (-1), inputs.right = 向右转向 (+1)
     const rawSteer = (inputs.left ? -1.0 : 0.0) + (inputs.right ? 1.0 : 0.0);
 
     const oldSpeed = isNaN(this.speed) ? 0 : this.speed;
 
-    // 前进加速
     if (throttle > 0 && brake === 0) {
       if (this.speed < 0) {
-        // 倒车中踩油门：制动
         this.speed += this.brakeDecel * delta;
       } else if (this.speed < curMaxSpeed) {
         const accelForce = this.isBoosting ? this.acceleration * 1.5 : this.acceleration;
@@ -113,17 +104,13 @@ export class KartPhysics {
         if (this.speed > curMaxSpeed) this.speed = curMaxSpeed;
       }
     } else if (brake > 0 && throttle === 0) {
-      // 刹车或倒车
       if (this.speed > 0) {
-        // 高速急刹
         this.speed -= this.brakeDecel * brake * delta;
         if (this.speed < 0) this.speed = 0;
       } else if (this.speed > this.maxReverseSpeed) {
-        // 倒车加速
         this.speed -= this.reverseAccel * brake * delta;
       }
     } else {
-      // 松开油门与刹车：自然摩擦与空气阻力衰减
       const drag = this.rollingDrag + this.airDragCoeff * this.speed * this.speed;
       if (this.speed > 0) {
         this.speed -= drag * delta;
@@ -134,7 +121,6 @@ export class KartPhysics {
       }
     }
 
-    // 纵向加速度 G 值（绝对防除以零与防 NaN）
     if (delta > 0.0001) {
       this.accelG = (this.speed - oldSpeed) / delta;
       if (isNaN(this.accelG)) this.accelG = 0;
@@ -150,7 +136,6 @@ export class KartPhysics {
       this.driftStage = 0;
     }
 
-    // 退出漂移并触发 Mini-Turbo 爆发
     if (!inputs.drift && this.isDrifting) {
       if (this.driftStage === 1) {
         this.isBoosting = true;
@@ -168,17 +153,15 @@ export class KartPhysics {
       this.driftStage = 0;
     }
 
-    // 漂移蓄力计算
     if (this.isDrifting) {
       this.driftTimer += delta;
       if (this.driftTimer > 2.4) {
-        this.driftStage = 2; // 橙火
+        this.driftStage = 2;
       } else if (this.driftTimer > 1.2) {
-        this.driftStage = 1; // 蓝火
+        this.driftStage = 1;
       }
     }
 
-    // 转向角速度随车速动态缩放（低速敏捷，高速抗推头）
     const speedRatio = Math.min(1.0, Math.abs(this.speed) / this.maxSpeed);
     const steerSens = (1.1 - speedRatio * 0.45);
     let targetSteerAngle = rawSteer * 0.52;
@@ -187,13 +170,14 @@ export class KartPhysics {
       targetSteerAngle = this.driftDirection * 0.42 + rawSteer * 0.25;
     }
 
-    // 平滑前轮转向角
     this.steerAngle += (targetSteerAngle - this.steerAngle) * 12.0 * delta;
     if (isNaN(this.steerAngle)) this.steerAngle = 0;
 
-    // 改变偏航角
-    let effectiveTurn = this.steerAngle * this.turnRate * steerSens;
-    if (this.speed < 0) effectiveTurn = -effectiveTurn;
+    // 【核心修复】：纠正左右转向符号！
+    // 当按 D/右键时 rawSteer=+1，必须使偏航角 yaw 减小以向屏幕右侧(-X)转动；
+    // 当按 A/左键时 rawSteer=-1，必须使偏航角 yaw 增大以向屏幕左侧(+X)转动。
+    let effectiveTurn = -this.steerAngle * this.turnRate * steerSens;
+    if (this.speed < 0) effectiveTurn = -effectiveTurn; // 倒车反打
     this.yaw += effectiveTurn * delta;
     if (isNaN(this.yaw)) this.yaw = 0;
 
@@ -201,29 +185,32 @@ export class KartPhysics {
     this.lateralG = effectiveTurn * (this.speed / 10.0);
     if (isNaN(this.lateralG)) this.lateralG = 0;
 
-    // 6. 速度矢量分解（朝向向量与漂移横移角）
+    // 6. 速度矢量分解
     let moveYaw = this.yaw;
     if (this.isDrifting) {
-      moveYaw += this.driftDirection * 0.28;
+      moveYaw += -this.driftDirection * 0.25;
     }
 
     const forwardX = Math.sin(moveYaw);
     const forwardZ = Math.cos(moveYaw);
     this.velocity.set(forwardX * this.speed, forwardZ * this.speed);
 
-    // 7. 【核心】绝对防穿墙连续碰撞检测 (Continuous Sub-stepping Collision Detection)
+    // 7. 防穿墙连续子步进检测
     this._substeppingCollisionResolution(track, delta);
 
     // 8. 检查点与圈数判定
     this._checkLapProgress(track);
 
-    // 9. 加速带、金币与问号箱拾取
+    // 9. 道具与金币交互
     this._checkPickups(track);
   }
 
-  // 细分多步进防穿墙算法：无论多快速度绝对杜绝穿模穿墙！
   _substeppingCollisionResolution(track, delta) {
-    if (!track || !track.wallSegments || track.wallSegments.length === 0) return;
+    if (!track || !track.wallSegments || track.wallSegments.length === 0) {
+      this.position.x += this.velocity.x * delta;
+      this.position.z += this.velocity.y * delta;
+      return;
+    }
 
     const moveDist = this.velocity.length() * delta;
     const subSteps = Math.min(20, Math.max(6, Math.ceil(moveDist / 0.12)));
@@ -265,11 +252,9 @@ export class KartPhysics {
           let nx = dx / dist;
           let nz = dz / dist;
 
-          // 1. 强制外推锁死在墙外
           this.position.x += nx * overlap;
           this.position.z += nz * overlap;
 
-          // 2. 动量投影：消除垂直于墙面速度，计算微弹性反弹与切向摩擦
           const vDotN = this.velocity.x * nx + this.velocity.y * nz;
           if (vDotN < 0) {
             const restitution = 0.22;
@@ -300,7 +285,6 @@ export class KartPhysics {
     }
   }
 
-  // 检查点顺次判定（防作弊）
   _checkLapProgress(track) {
     if (!track || !track.checkpoints || track.checkpoints.length === 0) return;
     const p = new THREE.Vector2(this.position.x, this.position.z);
@@ -330,12 +314,10 @@ export class KartPhysics {
     }
   }
 
-  // 拾取与机关交互
   _checkPickups(track) {
     if (!track) return;
     const p = this.position;
 
-    // 1. 加速带
     if (track.boostPads) {
       track.boostPads.forEach(pad => {
         const dist = Math.hypot(p.x - pad.position.x, p.z - pad.position.z);
@@ -349,7 +331,6 @@ export class KartPhysics {
       });
     }
 
-    // 2. 金币拾取
     if (track.coins) {
       track.coins.forEach(coin => {
         if (!coin.collected) {
@@ -365,7 +346,6 @@ export class KartPhysics {
       });
     }
 
-    // 3. 道具箱
     if (track.itemBoxes) {
       track.itemBoxes.forEach(box => {
         if (box.active) {
@@ -382,7 +362,6 @@ export class KartPhysics {
     }
   }
 
-  // 激活道具
   useCurrentItem() {
     if (!this.hasItem) return false;
     if (this.hasItem === 'mushroom') {

@@ -526,19 +526,21 @@ class Game {
 
     ctx.clearRect(0, 0, w, h);
 
-    const scale = 0.40;
+    const scale = 0.38;
     const cx = w / 2;
     const cy = h / 2;
+    const trackCenterX = 82.5;
+    const trackCenterZ = 7.5;
 
-    // 1. 赛道轮廓
+    // 1. 赛道轮廓（反转 X 轴使小地图左右与车手主视角第一/第三人称左右一致）
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 10;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
     this.track.curvePoints.forEach((p, idx) => {
-      const mx = cx + p.x * scale;
-      const my = cy + p.z * scale;
+      const mx = cx - (p.x - trackCenterX) * scale;
+      const my = cy + (p.z - trackCenterZ) * scale;
       if (idx === 0) ctx.moveTo(mx, my);
       else ctx.lineTo(mx, my);
     });
@@ -554,16 +556,16 @@ class Game {
     const startP = this.track.curvePoints[0];
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(cx + startP.x * scale, cy + startP.z * scale, 4, 0, Math.PI * 2);
+    ctx.arc(cx - (startP.x - trackCenterX) * scale, cy + (startP.z - trackCenterZ) * scale, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // 4. 自车红色定位指针
-    const pX = cx + this.physics.position.x * scale;
-    const pZ = cy + this.physics.position.z * scale;
+    // 4. 自车红色定位指针（旋转角 -yaw 与反转后的 X 轴镜像对应）
+    const pX = cx - (this.physics.position.x - trackCenterX) * scale;
+    const pZ = cy + (this.physics.position.z - trackCenterZ) * scale;
 
     ctx.save();
     ctx.translate(pX, pZ);
-    ctx.rotate(this.physics.yaw);
+    ctx.rotate(-this.physics.yaw);
 
     ctx.fillStyle = '#ff1744';
     ctx.beginPath();

@@ -399,10 +399,10 @@ export class Kart {
     this.bodyGroup.rotation.z += (targetRoll - this.bodyGroup.rotation.z) * 0.2;
     this.bodyGroup.rotation.x += (targetPitch - this.bodyGroup.rotation.x) * 0.2;
 
-    // 3. 前轮转向角偏转
+    // 3. 前轮转向角偏转（向右打轮向前轮向屏幕右侧偏转，向左打轮向屏幕左侧偏转）
     const steer = isNaN(physics.steerAngle) ? 0 : physics.steerAngle;
-    this.frontLeftPivot.rotation.y = steer;
-    this.frontRightPivot.rotation.y = steer;
+    this.frontLeftPivot.rotation.y = -steer;
+    this.frontRightPivot.rotation.y = -steer;
 
     // 方向盘联动旋转
     if (this.steeringWheel) {

@@ -6,7 +6,7 @@ export class Track {
     this.width = 15.0;       // 15米开阔标准赛道
     this.wallHeight = 2.4;   // 2.4米坚固防撞墙
 
-    // 碰撞线段集合（内墙和外墙，每条线段包含 p1, p2, normal）
+    // 碰撞线段集合
     this.wallSegments = [];
     // 检查点集合
     this.checkpoints = [];
@@ -15,7 +15,7 @@ export class Track {
     this.boostPads = [];
     this.itemBoxes = [];
 
-    // 创建起跑直道完全正对 +Z 的封闭赛道曲线
+    // 创建起跑直道完全正对 +Z、绝对无重叠交叉的经典大奖赛封闭曲线
     this.curve = this._buildTrackCurve();
     this.numSteps = 320;
     this.curvePoints = this.curve.getSpacedPoints(this.numSteps);
@@ -30,7 +30,7 @@ export class Track {
     this._buildCheckpoints();
   }
 
-  // 获取发车线绝对坐标与偏航角朝向
+  // 获取发车线绝对坐标与朝向（正前方无遮挡，直奔 +Z 开阔直道）
   getStartPosition() {
     const p0 = this.curvePoints[0];
     const p1 = this.curvePoints[1];
@@ -42,29 +42,24 @@ export class Track {
     };
   }
 
-  // 1. 构建经典封闭赛道控制点（起跑线至大直道，长达 150 米正前方无遮挡大直道）
+  // 1. 构建经典封闭大奖赛赛道（零交叉自相交、最小间距 > 60米、拥有近 200 米通畅起跑大直道）
   _buildTrackCurve() {
     const rawPoints = [
-      new THREE.Vector3(0, 0, -60),     // 起始线与发车拱门
-      new THREE.Vector3(0, 0, -10),
-      new THREE.Vector3(0, 0, 40),
+      new THREE.Vector3(0, 0, -80),     // 起终点线与发车门楼
+      new THREE.Vector3(0, 0, -30),     // 起跑大直道
+      new THREE.Vector3(0, 0, 30),      // 起跑大直道中段
       new THREE.Vector3(0, 0, 90),      // 直道末端进入大弧度高速右弯
-      new THREE.Vector3(40, 0, 135),
-      new THREE.Vector3(90, 0, 145),
-      new THREE.Vector3(135, 0, 115),   // 1号弯顶点
-      new THREE.Vector3(150, 0, 60),
-      new THREE.Vector3(130, 0, 10),
-      new THREE.Vector3(95, 0, -20),    // S弯入口
-      new THREE.Vector3(60, 0, -15),
-      new THREE.Vector3(35, 0, 20),     // S弯折返
-      new THREE.Vector3(10, 0, 50),
-      new THREE.Vector3(-30, 0, 55),
-      new THREE.Vector3(-75, 0, 30),    // 惊险发卡弯入口
-      new THREE.Vector3(-110, 0, -15),
-      new THREE.Vector3(-115, 0, -65),  // 发卡弯折返
-      new THREE.Vector3(-90, 0, -115),  // 回航大弧弯
-      new THREE.Vector3(-45, 0, -120),
-      new THREE.Vector3(0, 0, -110)     // 直道平滑衔接前导点
+      new THREE.Vector3(25, 0, 140),    // 1号弯入口
+      new THREE.Vector3(75, 0, 160),    // 1号大弧弯顶点
+      new THREE.Vector3(125, 0, 145),   // 1号弯出弯
+      new THREE.Vector3(155, 0, 100),   // 2号高速右弯
+      new THREE.Vector3(165, 0, 30),    // 东侧超长大直道
+      new THREE.Vector3(165, 0, -30),   // 东侧高速直道下行
+      new THREE.Vector3(145, 0, -90),   // 3号弯入口
+      new THREE.Vector3(105, 0, -135),  // 3号弯顶点（发卡弯）
+      new THREE.Vector3(50, 0, -145),   // 南部返程路段
+      new THREE.Vector3(10, 0, -135),   // 进弯回航
+      new THREE.Vector3(0, 0, -110)     // 直道平滑对齐段
     ];
 
     return new THREE.CatmullRomCurve3(rawPoints, true, 'centripetal', 0.5);
@@ -111,7 +106,6 @@ export class Track {
     roadGeo.setIndex(indices);
     roadGeo.computeVertexNormals();
 
-    // 绘制高清沥青纹理（含路边双白线与中央黄色分道线）
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
@@ -120,18 +114,15 @@ export class Track {
     ctx.fillStyle = '#263238';
     ctx.fillRect(0, 0, 512, 512);
 
-    // 沥青噪点
     for (let j = 0; j < 3500; j++) {
       ctx.fillStyle = Math.random() > 0.5 ? '#37474f' : '#1e272c';
       ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
     }
 
-    // 两侧白色边界线
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(16, 0, 10, 512);
     ctx.fillRect(512 - 26, 0, 10, 512);
 
-    // 中央黄色虚线
     ctx.fillStyle = '#ffca28';
     for (let y = 0; y < 512; y += 64) {
       ctx.fillRect(251, y + 8, 10, 48);
@@ -173,7 +164,7 @@ export class Track {
     const redColor = new THREE.Color(0xd32f2f);
     const whiteColor = new THREE.Color(0xffffff);
     const wallBaseColor = new THREE.Color(0x37474f);
-    const wallTopColor = new THREE.Color(0xffca28); // 醒目金黄顶边
+    const wallTopColor = new THREE.Color(0xffca28);
 
     for (let i = 0; i <= num; i++) {
       const idx = i % num;
@@ -198,7 +189,6 @@ export class Track {
       const isRed = Math.floor(i / 4) % 2 === 0;
       const col = isRed ? redColor : whiteColor;
 
-      // 路肩顶点
       const cIdxStart = curbVerts.length / 3;
       curbVerts.push(innerRoadP.x, 0.03, innerRoadP.z);
       curbVerts.push(innerWallP.x, 0.16, innerWallP.z);
@@ -216,32 +206,26 @@ export class Track {
         curbIndices.push(cIdxStart + 3, cIdxStart + 6, cIdxStart + 7);
       }
 
-      // 防撞墙顶点
       const wIdxStart = wallVerts.length / 3;
-      // 内墙
       wallVerts.push(innerWallP.x, 0, innerWallP.z);
       wallVerts.push(innerWallP.x, wallH, innerWallP.z);
       wallColors.push(wallBaseColor.r, wallBaseColor.g, wallBaseColor.b);
       wallColors.push(wallTopColor.r, wallTopColor.g, wallTopColor.b);
 
-      // 外墙
       wallVerts.push(outerWallP.x, 0, outerWallP.z);
       wallVerts.push(outerWallP.x, wallH, outerWallP.z);
       wallColors.push(wallBaseColor.r, wallBaseColor.g, wallBaseColor.b);
       wallColors.push(wallTopColor.r, wallTopColor.g, wallTopColor.b);
 
       if (i < num) {
-        // 内墙面朝向赛道中心
         wallIndices.push(wIdxStart, wIdxStart + 4, wIdxStart + 1);
         wallIndices.push(wIdxStart + 1, wIdxStart + 4, wIdxStart + 5);
 
-        // 外墙面朝向赛道中心
         wallIndices.push(wIdxStart + 2, wIdxStart + 3, wIdxStart + 6);
         wallIndices.push(wIdxStart + 3, wIdxStart + 7, wIdxStart + 6);
       }
     }
 
-    // 组装路肩网格
     const curbGeo = new THREE.BufferGeometry();
     curbGeo.setAttribute('position', new THREE.Float32BufferAttribute(curbVerts, 3));
     curbGeo.setAttribute('color', new THREE.Float32BufferAttribute(curbColors, 3));
@@ -253,7 +237,6 @@ export class Track {
     curbMesh.receiveShadow = true;
     this.scene.add(curbMesh);
 
-    // 组装墙体网格
     const wallGeo = new THREE.BufferGeometry();
     wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallVerts, 3));
     wallGeo.setAttribute('color', new THREE.Float32BufferAttribute(wallColors, 3));
@@ -305,19 +288,17 @@ export class Track {
     }
   }
 
-  // 4. 精确横跨发车线的起终点拱门与黑白棋盘格终点线
+  // 4. 起终点门楼拱门与黑白棋盘格终点线
   _buildStartArch() {
     const p0 = this.curvePoints[0];
     const p1 = this.curvePoints[1];
     const tangent = new THREE.Vector3().subVectors(p1, p0).normalize();
-    const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
     const yaw = Math.atan2(tangent.x, tangent.z);
 
     const archGroup = new THREE.Group();
     archGroup.position.copy(p0);
     archGroup.rotation.y = yaw;
 
-    // 黑白棋盘终点线（沿 normal 轴横跨赛道）
     const finishLineGeo = new THREE.PlaneGeometry(this.width, 3.6);
     const flCanvas = document.createElement('canvas');
     flCanvas.width = 256;
@@ -337,11 +318,10 @@ export class Track {
     const flMat = new THREE.MeshBasicMaterial({ map: flTex, depthWrite: false });
     const finishLine = new THREE.Mesh(finishLineGeo, flMat);
     finishLine.rotation.x = -Math.PI / 2;
-    finishLine.rotation.z = Math.PI / 2; // 横跨赛道两侧
+    finishLine.rotation.z = Math.PI / 2;
     finishLine.position.y = 0.06;
     archGroup.add(finishLine);
 
-    // 红色金属拱门立柱（分别置于两侧护栏外）
     const pillarMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f, metalness: 0.5, roughness: 0.3 });
     const pillarGeo = new THREE.CylinderGeometry(0.7, 0.8, 9.0, 14);
 
@@ -356,14 +336,12 @@ export class Track {
     rightPillar.castShadow = true;
     archGroup.add(rightPillar);
 
-    // 跨道横梁
     const beamGeo = new THREE.BoxGeometry(this.width + 4.5, 1.5, 1.2);
     const beam = new THREE.Mesh(beamGeo, pillarMat);
     beam.position.set(0, 8.8, 0);
     beam.castShadow = true;
     archGroup.add(beam);
 
-    // 发车门头招牌 "★ MARIO KART 3D ★"
     const signCanvas = document.createElement('canvas');
     signCanvas.width = 512;
     signCanvas.height = 128;
@@ -397,7 +375,7 @@ export class Track {
 
   // 5. 加速带（Boost Pads）
   _buildBoostPads() {
-    const stepIndices = [45, 105, 175, 235, 285];
+    const stepIndices = [45, 110, 185, 255];
 
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -460,9 +438,8 @@ export class Track {
   // 6. 旋转金币（Coins）
   _buildCoins() {
     const coinIndices = [
-      12, 16, 20, 24, 60, 64, 68, 120, 124, 128,
-      155, 159, 163, 195, 199, 203, 248, 252, 256,
-      295, 299, 303, 307, 311
+      15, 20, 25, 60, 65, 70, 120, 125, 130,
+      170, 175, 180, 220, 225, 230, 275, 280, 285
     ];
 
     const coinGeo = new THREE.CylinderGeometry(0.75, 0.75, 0.22, 18);
@@ -480,7 +457,7 @@ export class Track {
       const tangent = new THREE.Vector3().subVectors(this.curvePoints[nextIdx], p).normalize();
       const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
 
-      const offset = (Math.sin(idx * 0.4) * 0.5) * (this.width - 5.0);
+      const offset = (Math.sin(idx * 0.45) * 0.45) * (this.width - 5.0);
       const pos = new THREE.Vector3().copy(p).addScaledVector(normal, offset);
       pos.y = 1.1;
 
@@ -502,7 +479,7 @@ export class Track {
 
   // 7. 问号道具箱（Item Boxes）
   _buildItemBoxes() {
-    const boxIndices = [35, 88, 145, 215, 270];
+    const boxIndices = [35, 95, 175, 245];
     const boxGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
     const boxMat = new THREE.MeshStandardMaterial({
       color: 0xffa000,
@@ -551,19 +528,18 @@ export class Track {
 
   // 8. 检查点（Checkpoints）
   _buildCheckpoints() {
-    const numCheckpoints = 24;
+    const numCheckpoints = 20;
     for (let i = 0; i < numCheckpoints; i++) {
       const idx = Math.floor((i / numCheckpoints) * this.numSteps);
       const p = this.curvePoints[idx];
       this.checkpoints.push({
         index: i,
         position: new THREE.Vector2(p.x, p.z),
-        radius: this.width * 1.1
+        radius: this.width * 1.15
       });
     }
   }
 
-  // 逐帧更新道具自转、浮动与刷新
   update(delta) {
     const time = performance.now() * 0.003;
 
