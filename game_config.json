@@ -1,0 +1,403 @@
+{
+  "meta": {
+    "title": "Mario Kart 3D Arcade - Engineering Config",
+    "version": "1.0.0",
+    "author": "Game Designer Toolkit",
+    "system_units": {
+      "distance": "meter (m)",
+      "time": "second (s)",
+      "mass": "kilogram (kg)",
+      "velocity": "meter per second (m/s) / kilometer per hour (km/h)",
+      "angle": "radian (rad) / degree (deg)",
+      "frequency": "hertz (Hz)"
+    },
+    "description": "Production-grade physics, gameplay, level, visual, and Web Audio API configuration for Mario Kart 3D."
+  },
+  "physics": {
+    "vehicle": {
+      "mass_kg": 450.0,
+      "dimensions_m": {
+        "length": 2.2,
+        "width": 1.4,
+        "height": 0.9,
+        "wheel_radius": 0.28,
+        "wheel_base": 1.35
+      },
+      "speed": {
+        "max_forward_speed_kmh": 160.0,
+        "max_forward_speed_ms": 44.444,
+        "max_reverse_speed_kmh": 40.0,
+        "max_reverse_speed_ms": 11.111,
+        "offroad_speed_cap_kmh": 40.0,
+        "offroad_speed_cap_ms": 11.111,
+        "absolute_speed_cap_kmh": 220.0,
+        "absolute_speed_cap_ms": 61.111,
+        "conversion_ms_to_kmh": 3.6
+      },
+      "acceleration": {
+        "base_forward_accel_ms2": 18.5,
+        "reverse_accel_ms2": 10.0,
+        "power_decay_exponent": 1.35,
+        "zero_to_100_time_s": 2.35,
+        "zero_to_160_time_s": 5.10
+      },
+      "braking_and_resistance": {
+        "brake_deceleration_ms2": 32.0,
+        "reverse_trigger_delay_s": 0.20,
+        "coast_damping_ms2": 6.8,
+        "air_drag_coefficient_cd": 0.42,
+        "rolling_friction_asphalt": 0.035,
+        "rolling_friction_grass": 0.45,
+        "lateral_grip_stiffness": 14.5
+      },
+      "steering": {
+        "low_speed_turn_rate_rad_s": 3.20,
+        "high_speed_turn_rate_rad_s": 1.15,
+        "speed_sensitive_exponent": 1.20,
+        "max_wheel_steer_angle_deg": 32.0,
+        "steer_lerp_speed": 15.0,
+        "steer_return_speed": 22.0,
+        "body_roll_max_deg": 7.5,
+        "body_pitch_squat_deg": 3.5,
+        "body_pitch_dive_deg": -5.0,
+        "body_attitude_lerp_speed": 12.0
+      },
+      "drift_system": {
+        "min_speed_kmh": 35.0,
+        "hop_impulse_y_ms": 3.8,
+        "hop_duration_s": 0.22,
+        "drift_slip_angle_deg": 28.0,
+        "inward_steer_multiplier": 1.45,
+        "counter_steer_multiplier": 0.55,
+        "charge_rate_base_pts_s": 65.0,
+        "charge_rate_hard_turn_bonus_pts_s": 95.0
+      },
+      "mini_turbo_stages": {
+        "stage_1_blue": {
+          "id": 1,
+          "name": "Mini-Turbo",
+          "threshold_pts": 100.0,
+          "boost_speed_bonus_kmh": 25.0,
+          "boost_speed_bonus_ms": 6.944,
+          "duration_s": 1.20,
+          "color_hex": "#00F0FF",
+          "color_rgb": [0, 240, 255],
+          "particle_spark_rate": 80,
+          "fov_bonus_deg": 6.0
+        },
+        "stage_2_orange": {
+          "id": 2,
+          "name": "Super Mini-Turbo",
+          "threshold_pts": 250.0,
+          "boost_speed_bonus_kmh": 42.0,
+          "boost_speed_bonus_ms": 11.667,
+          "duration_s": 1.85,
+          "color_hex": "#FF6600",
+          "color_rgb": [255, 102, 0],
+          "particle_spark_rate": 140,
+          "fov_bonus_deg": 10.0
+        },
+        "stage_3_purple": {
+          "id": 3,
+          "name": "Ultra Mini-Turbo",
+          "threshold_pts": 480.0,
+          "boost_speed_bonus_kmh": 60.0,
+          "boost_speed_bonus_ms": 16.667,
+          "duration_s": 2.60,
+          "color_hex": "#AA00FF",
+          "color_rgb": [170, 0, 255],
+          "particle_spark_rate": 200,
+          "fov_bonus_deg": 15.0
+        }
+      },
+      "collision_anti_tunneling": {
+        "collider_type": "capsule_and_swept_sphere",
+        "collider_radius_m": 0.85,
+        "collider_height_m": 0.90,
+        "ccd_enabled": true,
+        "substeps": 4,
+        "restitution_coefficient": 0.38,
+        "wall_friction_speed_loss": 0.35,
+        "normal_pushback_slop_m": 0.05,
+        "screen_shake_intensity": 0.35,
+        "screen_shake_decay_s": 0.18
+      }
+    }
+  },
+  "track": {
+    "geometry": {
+      "total_length_approx_m": 680.0,
+      "road_width_m": 14.0,
+      "curb_width_m": 1.2,
+      "curb_height_m": 0.12,
+      "curb_slope_deg": 10.0,
+      "wall_height_m": 2.4,
+      "wall_thickness_m": 0.6,
+      "asphalt_color_hex": "#2C313A",
+      "curb_red_hex": "#FF2222",
+      "curb_white_hex": "#FFFFFF",
+      "curb_stripe_length_m": 1.5,
+      "curb_rumble_frequency_hz": 18.0
+    },
+    "start_finish_arch": {
+      "position": [0.0, 0.0, 0.0],
+      "span_width_m": 16.0,
+      "clearance_height_m": 6.5,
+      "column_diameter_m": 1.2,
+      "banner_text": "MARIO KART GP",
+      "finish_line_checker_pattern": {
+        "rows": 4,
+        "cols": 16,
+        "depth_m": 2.0,
+        "color1_hex": "#FFFFFF",
+        "color2_hex": "#111111"
+      },
+      "countdown_lights": {
+        "red_count": 3,
+        "green_count": 1,
+        "light_radius_m": 0.35
+      }
+    },
+    "interactive_elements": {
+      "boost_pads": [
+        {
+          "id": "boost_pad_straight",
+          "position": [0.0, 0.02, 75.0],
+          "rotation_euler": [0.0, 0.0, 0.0],
+          "dimensions_m": [3.5, 0.03, 5.0],
+          "instant_target_speed_kmh": 195.0,
+          "boost_speed_bonus_kmh": 45.0,
+          "duration_s": 2.0,
+          "chevron_arrow_speed_ms": 4.0,
+          "glow_color_hex": "#FF9900",
+          "fov_pulse_deg": 12.0
+        },
+        {
+          "id": "boost_pad_hill_jump",
+          "position": [180.0, 1.5, -80.0],
+          "rotation_euler": [0.1, 1.57, 0.0],
+          "dimensions_m": [3.5, 0.03, 5.0],
+          "instant_target_speed_kmh": 205.0,
+          "boost_speed_bonus_kmh": 50.0,
+          "duration_s": 2.2,
+          "chevron_arrow_speed_ms": 4.0,
+          "glow_color_hex": "#FFEE00",
+          "fov_pulse_deg": 14.0
+        }
+      ],
+      "coins": {
+        "model": {
+          "radius_m": 0.40,
+          "thickness_m": 0.08,
+          "float_height_m": 0.65,
+          "rotation_speed_rad_s": 3.14159,
+          "color_hex": "#FFD700",
+          "emissive_hex": "#FFAA00"
+        },
+        "trigger_radius_m": 1.2,
+        "max_held_coins": 10,
+        "speed_boost_per_coin_pct": 1.2,
+        "respawn_time_s": 4.0,
+        "drop_on_wall_crash_count": 3,
+        "pickup_impulse_ms": 0.8
+      },
+      "item_boxes": {
+        "box_size_m": [1.4, 1.4, 1.4],
+        "float_height_m": 1.2,
+        "float_amplitude_m": 0.15,
+        "float_frequency_hz": 0.8,
+        "rotation_speeds_rad_s": [0.8, 1.2, 0.5],
+        "respawn_time_s": 3.5,
+        "hologram_color_hex": "#FFE600",
+        "question_mark_emissive_hex": "#FFFFFF"
+      }
+    },
+    "scenery_props": {
+      "super_mushrooms": [
+        { "position": [120.0, 0.0, 60.0], "scale": 1.4, "cap_color_hex": "#FF2222", "dot_color_hex": "#FFFFFF" },
+        { "position": [-110.0, 0.0, -140.0], "scale": 1.2, "cap_color_hex": "#FF2222", "dot_color_hex": "#FFFFFF" },
+        { "position": [70.0, 0.0, -180.0], "scale": 1.6, "cap_color_hex": "#00E676", "dot_color_hex": "#FFFFFF" }
+      ],
+      "toon_trees": {
+        "count": 40,
+        "trunk_height_m": 3.5,
+        "foliage_layers": 3,
+        "foliage_colors_hex": ["#4CAF50", "#8BC34A", "#388E3C"]
+      },
+      "rolling_hills": {
+        "count": 12,
+        "radius_range_m": [35.0, 90.0],
+        "height_range_m": [15.0, 45.0],
+        "color_primary_hex": "#7CB342",
+        "color_secondary_hex": "#689F38"
+      },
+      "grass_field": {
+        "color_hex": "#559E27",
+        "roughness": 0.9,
+        "offroad_slowdown_factor": 0.25
+      }
+    }
+  },
+  "environment": {
+    "sky_dome": {
+      "zenith_color_hex": "#1E88E5",
+      "mid_color_hex": "#64B5F6",
+      "horizon_glow_hex": "#E3F2FD",
+      "fog_near_m": 250.0,
+      "fog_far_m": 650.0
+    },
+    "clouds": {
+      "count": 24,
+      "min_altitude_m": 45.0,
+      "max_altitude_m": 70.0,
+      "wind_velocity_ms": [1.5, 0.0, 0.8],
+      "spheres_per_cloud_range": [4, 7],
+      "scale_range": [1.0, 2.8],
+      "color_hex": "#FFFFFF",
+      "opacity": 0.95
+    },
+    "lighting": {
+      "directional_sun": {
+        "color_hex": "#FFF9E6",
+        "intensity": 2.4,
+        "position": [80.0, 130.0, 60.0],
+        "cast_shadow": true,
+        "shadow_map_size": 2048,
+        "shadow_frustum_bounds": [-75.0, 75.0, -75.0, 75.0],
+        "shadow_near": 1.0,
+        "shadow_far": 300.0,
+        "shadow_bias": -0.0004
+      },
+      "hemisphere_ambient": {
+        "sky_color_hex": "#B3E5FC",
+        "sky_intensity": 0.85,
+        "ground_color_hex": "#A5D6A7",
+        "ground_intensity": 0.45
+      }
+    }
+  },
+  "camera": {
+    "type": "SpringArmChaseCamera",
+    "rest_offset_m": [0.0, 2.6, -6.2],
+    "look_at_offset_m": [0.0, 1.1, 0.0],
+    "position_stiffness": 10.0,
+    "rotation_stiffness": 8.5,
+    "fov_base_deg": 60.0,
+    "fov_speed_bonus_max_deg": 8.0,
+    "fov_boost_bonus_max_deg": 16.0,
+    "fov_lerp_speed": 6.0,
+    "screen_shake_decay_s": 0.18
+  },
+  "hud": {
+    "speedometer": {
+      "anchor": "bottom-right",
+      "margin_px": [36, 36],
+      "diameter_px": 170,
+      "arc_start_deg": -210.0,
+      "arc_end_deg": 30.0,
+      "max_display_speed_kmh": 220,
+      "color_bands": [
+        { "min_speed": 0, "max_speed": 100, "color_hex": "#00E676" },
+        { "min_speed": 100, "max_speed": 150, "color_hex": "#FFD600" },
+        { "min_speed": 150, "max_speed": 180, "color_hex": "#FF3D00" },
+        { "min_speed": 180, "max_speed": 220, "color_hex": "#E040FB" }
+      ]
+    },
+    "lap_counter": {
+      "anchor": "top-left",
+      "margin_px": [28, 32],
+      "total_laps": 3,
+      "final_lap_flash_freq_hz": 3.0,
+      "final_lap_banner_duration_s": 2.2
+    },
+    "timer": {
+      "anchor": "top-center",
+      "margin_top_px": 28,
+      "time_format": "mm:ss.SSS"
+    },
+    "coin_counter": {
+      "anchor": "top-right",
+      "margin_px": [28, 36],
+      "max_display": 10,
+      "bounce_scale": 1.25,
+      "bounce_duration_s": 0.25
+    },
+    "minimap": {
+      "anchor": "bottom-left",
+      "margin_px": [36, 32],
+      "diameter_px": 160,
+      "background_alpha": 0.75,
+      "track_stroke_color": "#FFFFFF",
+      "track_stroke_width_px": 4,
+      "player_indicator_color": "#00FF66",
+      "player_indicator_size_px": 8
+    },
+    "vfx_overlays": {
+      "radial_speed_lines_threshold_kmh": 135.0,
+      "radial_speed_lines_max_opacity": 0.65,
+      "drift_sparks_rate": 120,
+      "wall_impact_sparks_rate": 150
+    }
+  },
+  "audio_web_audio_synth": {
+    "engine": {
+      "osc_1": { "type": "sawtooth", "gain": 0.65 },
+      "osc_2": { "type": "square", "gain": 0.35 },
+      "filter": { "type": "lowpass", "q": 1.8 },
+      "idle_freq_hz": 65.0,
+      "redline_freq_hz": 380.0,
+      "filter_idle_hz": 400.0,
+      "filter_redline_hz": 3200.0,
+      "waveshaper_distortion_curve_gain": 0.22,
+      "volume_idle": 0.18,
+      "volume_max": 0.35
+    },
+    "tire_screech": {
+      "source": "white_noise_buffer",
+      "filter": { "type": "bandpass", "center_freq_hz": 1450.0, "q": 3.2 },
+      "slip_velocity_threshold_ms": 4.5,
+      "max_volume": 0.45
+    },
+    "coin_ping": {
+      "osc_type": "sine",
+      "note_1_freq_hz": 987.77,
+      "note_1_duration_s": 0.075,
+      "note_2_freq_hz": 1318.51,
+      "note_2_duration_s": 0.245,
+      "attack_time_s": 0.005,
+      "decay_time_s": 0.24,
+      "volume": 0.40
+    },
+    "boost_whoosh": {
+      "sweep_osc_type": "sine",
+      "freq_start_hz": 180.0,
+      "freq_end_hz": 880.0,
+      "sweep_duration_s": 0.45,
+      "noise_burst_duration_s": 0.60,
+      "noise_type": "pink_noise",
+      "volume": 0.50
+    },
+    "crash_impact": {
+      "bass_osc_type": "triangle",
+      "freq_start_hz": 130.0,
+      "freq_end_hz": 28.0,
+      "bass_decay_s": 0.25,
+      "noise_spike_decay_s": 0.08,
+      "volume": 0.65
+    },
+    "mini_turbo_release": {
+      "pitch_sweep_range_hz": [350.0, 750.0],
+      "sweep_duration_s": 0.25,
+      "pop_noise_volume": 0.55
+    },
+    "chiptune_bgm": {
+      "bpm": 145,
+      "key": "C Major",
+      "lead_voice": { "type": "square", "duty_cycle": 0.25, "volume": 0.30 },
+      "bass_voice": { "type": "triangle", "volume": 0.45 },
+      "percussion_noise": { "snare_volume": 0.25, "hihat_volume": 0.15 },
+      "master_volume": 0.28,
+      "loop": true
+    }
+  }
+}
