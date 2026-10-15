@@ -15,8 +15,8 @@ export class KartPhysics {
     this.collisionRadius = 1.30; // 碰撞胶囊半径
 
     // 状态量
-    this.position = new THREE.Vector3(0, 0, -110);      // 起跑点
-    this.yaw = 0;                                       // 偏航角 (0 = 朝向 +Z 即顺着发车方向)
+    this.position = new THREE.Vector3(0, 0, -60);       // 发车线默认原点
+    this.yaw = 0;                                       // 偏航角 (0 = 朝向 +Z 顺着大直道)
     this.speed = 0;                                     // 当前前进线速度 (m/s)
     this.velocity = new THREE.Vector2(0, 0);            // 水平动量矢量
     this.steerAngle = 0;                                // 前轮偏转角 (-0.52 ~ +0.52 rad)
@@ -49,27 +49,29 @@ export class KartPhysics {
     this.collisionEvents = [];
   }
 
-  // 重置车辆到赛道安全原点
+  // 重置车辆到赛道安全位置与朝向
   resetToTrack(pos = null, yaw = 0) {
     if (pos) {
       this.position.copy(pos);
-      this.yaw = yaw;
+      this.yaw = isNaN(yaw) ? 0 : yaw;
     } else {
-      this.position.set(0, 0, -110);
+      this.position.set(0, 0.05, -60);
       this.yaw = 0;
     }
     this.speed = 0;
     this.velocity.set(0, 0);
     this.steerAngle = 0;
+    this.lateralG = 0;
+    this.accelG = 0;
     this.isDrifting = false;
     this.isBoosting = false;
     this.boostTimer = 0;
   }
 
   // 核心物理逐帧步进
-  update(inputs, track, delta) {
+  update(inputs, track, rawDelta) {
     this.collisionEvents = [];
-    if (delta > 0.1) delta = 0.1; // 防止掉帧过大导致积分异常
+    const delta = (!rawDelta || isNaN(rawDelta) || rawDelta <= 0.0001) ? 0.016 : Math.min(0.08, rawDelta);
 
     // 1. 计时器更新
     if (!this.lapFinished) {
@@ -98,7 +100,7 @@ export class KartPhysics {
     const brake = inputs.brake ? 1.0 : 0.0;
     const rawSteer = (inputs.left ? -1.0 : 0.0) + (inputs.right ? 1.0 : 0.0);
 
-    const oldSpeed = this.speed;
+    const oldSpeed = isNaN(this.speed) ? 0 : this.speed;
 
     // 前进加速
     if (throttle > 0 && brake === 0) {
@@ -132,11 +134,15 @@ export class KartPhysics {
       }
     }
 
-    // 纵向加速度 G 值
-    this.accelG = (this.speed - oldSpeed) / delta;
+    // 纵向加速度 G 值（绝对防除以零与防 NaN）
+    if (delta > 0.0001) {
+      this.accelG = (this.speed - oldSpeed) / delta;
+      if (isNaN(this.accelG)) this.accelG = 0;
+    } else {
+      this.accelG = 0;
+    }
 
     // 5. 漂移与转向逻辑
-    // 触发漂移条件：有一定前向速度 + 转向 + 按住漂移键
     if (inputs.drift && Math.abs(rawSteer) > 0.1 && this.speed > 6.0 && !this.isDrifting) {
       this.isDrifting = true;
       this.driftDirection = rawSteer > 0 ? 1 : -1;
@@ -144,16 +150,14 @@ export class KartPhysics {
       this.driftStage = 0;
     }
 
-    // 退出漂移并触发 Mini-Turbo
+    // 退出漂移并触发 Mini-Turbo 爆发
     if (!inputs.drift && this.isDrifting) {
       if (this.driftStage === 1) {
-        // 蓝火推进
         this.isBoosting = true;
         this.boostTimer = 1.2;
         this.boostStage = 1;
         this.speed = Math.max(this.speed, curMaxSpeed * 1.15);
       } else if (this.driftStage === 2) {
-        // 橙火超级推进
         this.isBoosting = true;
         this.boostTimer = 2.2;
         this.boostStage = 2;
@@ -176,29 +180,30 @@ export class KartPhysics {
 
     // 转向角速度随车速动态缩放（低速敏捷，高速抗推头）
     const speedRatio = Math.min(1.0, Math.abs(this.speed) / this.maxSpeed);
-    const steerSens = (1.1 - speedRatio * 0.45); // 0.65 ~ 1.1
-    let targetSteerAngle = rawSteer * 0.52; // 最大偏转 30 度
+    const steerSens = (1.1 - speedRatio * 0.45);
+    let targetSteerAngle = rawSteer * 0.52;
 
     if (this.isDrifting) {
-      // 漂移状态下根据漂移方向与玩家反打方向微调
       targetSteerAngle = this.driftDirection * 0.42 + rawSteer * 0.25;
     }
 
     // 平滑前轮转向角
     this.steerAngle += (targetSteerAngle - this.steerAngle) * 12.0 * delta;
+    if (isNaN(this.steerAngle)) this.steerAngle = 0;
 
     // 改变偏航角
     let effectiveTurn = this.steerAngle * this.turnRate * steerSens;
-    if (this.speed < 0) effectiveTurn = -effectiveTurn; // 倒车反向
+    if (this.speed < 0) effectiveTurn = -effectiveTurn;
     this.yaw += effectiveTurn * delta;
+    if (isNaN(this.yaw)) this.yaw = 0;
 
     // 横向离心加速度
     this.lateralG = effectiveTurn * (this.speed / 10.0);
+    if (isNaN(this.lateralG)) this.lateralG = 0;
 
     // 6. 速度矢量分解（朝向向量与漂移横移角）
     let moveYaw = this.yaw;
     if (this.isDrifting) {
-      // 漂移时速度矢量略微外抛
       moveYaw += this.driftDirection * 0.28;
     }
 
@@ -209,36 +214,34 @@ export class KartPhysics {
     // 7. 【核心】绝对防穿墙连续碰撞检测 (Continuous Sub-stepping Collision Detection)
     this._substeppingCollisionResolution(track, delta);
 
-    // 8. 检查点与圈数进度判定
+    // 8. 检查点与圈数判定
     this._checkLapProgress(track);
 
-    // 9. 加速带、金币与问号箱交互判定
+    // 9. 加速带、金币与问号箱拾取
     this._checkPickups(track);
   }
 
-  // 细分多步进防穿墙算法：将一帧位移拆为多个微步，杜绝任何穿模穿墙！
+  // 细分多步进防穿墙算法：无论多快速度绝对杜绝穿模穿墙！
   _substeppingCollisionResolution(track, delta) {
+    if (!track || !track.wallSegments || track.wallSegments.length === 0) return;
+
     const moveDist = this.velocity.length() * delta;
-    // 每 0.12 米至少细分 1 步，最低 6 步，最高 20 步
     const subSteps = Math.min(20, Math.max(6, Math.ceil(moveDist / 0.12)));
     const dt = delta / subSteps;
     const r = this.collisionRadius;
 
     for (let step = 0; step < subSteps; step++) {
-      // 尝试移动微小步长
       this.position.x += this.velocity.x * dt;
       this.position.z += this.velocity.y * dt;
 
       const pX = this.position.x;
       const pZ = this.position.z;
 
-      // 遍历外墙与内墙的所有线段检测点到线段的距离
       for (let w = 0; w < track.wallSegments.length; w++) {
         const seg = track.wallSegments[w];
         const p1 = seg.p1;
         const p2 = seg.p2;
 
-        // 计算点到线段最近点 Q
         const vx = p2.x - p1.x;
         const vz = p2.y - p1.y;
         const segLenSq = vx * vx + vz * vz;
@@ -255,44 +258,37 @@ export class KartPhysics {
         const dz = pZ - qZ;
         const distSq = dx * dx + dz * dz;
 
-        // 若车身球体与墙体相交
         if (distSq < r * r) {
           const dist = Math.sqrt(distSq) || 0.001;
-          const overlap = r - dist + 0.02; // 安全安全裕度
+          const overlap = r - dist + 0.02;
 
-          // 碰撞法线（预存法线或几何连线）
           let nx = dx / dist;
           let nz = dz / dist;
 
-          // 1. 强制推出：牢牢卡在墙面外侧，严禁穿透！
+          // 1. 强制外推锁死在墙外
           this.position.x += nx * overlap;
           this.position.z += nz * overlap;
 
           // 2. 动量投影：消除垂直于墙面速度，计算微弹性反弹与切向摩擦
           const vDotN = this.velocity.x * nx + this.velocity.y * nz;
           if (vDotN < 0) {
-            const restitution = 0.22; // 反弹系数
-            const friction = 0.65;    // 切向速度保留比例
+            const restitution = 0.22;
+            const friction = 0.65;
 
-            // 分解为法向与切向
             const vNormX = vDotN * nx;
             const vNormZ = vDotN * nz;
             const vTanX = this.velocity.x - vNormX;
             const vTanZ = this.velocity.y - vNormZ;
 
-            // 新速度：切向减速 + 法向微反弹
             this.velocity.x = vTanX * friction - vNormX * restitution;
             this.velocity.y = vTanZ * friction - vNormZ * restitution;
 
-            // 同步线速度
             this.speed = Math.sign(this.speed) * Math.min(Math.abs(this.speed) * 0.75, this.velocity.length());
 
-            // 掉落 1 枚金币惩罚
             if (this.coins > 0 && Math.random() < 0.2) {
               this.coins = Math.max(0, this.coins - 1);
             }
 
-            // 记录撞墙事件用于触发火花与打击音效
             this.collisionEvents.push({
               position: new THREE.Vector3(qX, 0.4, qZ),
               normal: new THREE.Vector2(nx, nz),
@@ -304,12 +300,12 @@ export class KartPhysics {
     }
   }
 
-  // 检查点顺次判定（防倒跑作弊与过线判定）
+  // 检查点顺次判定（防作弊）
   _checkLapProgress(track) {
+    if (!track || !track.checkpoints || track.checkpoints.length === 0) return;
     const p = new THREE.Vector2(this.position.x, this.position.z);
     const numCp = track.checkpoints.length;
 
-    // 寻找下一个期望的检查点
     const nextCpIdx = (this.lastCheckpoint + 1) % numCp;
     const nextCp = track.checkpoints[nextCpIdx];
 
@@ -317,7 +313,6 @@ export class KartPhysics {
     if (dist < nextCp.radius) {
       this.lastCheckpoint = nextCpIdx;
 
-      // 如果通过了 0 号检查点并且之前已经经过了一半以上的检查点，判定完成一圈
       if (nextCpIdx === 0 && this.lastCheckpoint === 0) {
         if (!this.bestLapTime || this.lapTimer < this.bestLapTime) {
           this.bestLapTime = this.lapTimer;
@@ -337,50 +332,57 @@ export class KartPhysics {
 
   // 拾取与机关交互
   _checkPickups(track) {
+    if (!track) return;
     const p = this.position;
 
-    // 1. 加速带碰撞检测
-    track.boostPads.forEach(pad => {
-      const dist = Math.hypot(p.x - pad.position.x, p.z - pad.position.z);
-      if (dist < pad.radius) {
-        this.isBoosting = true;
-        this.boostTimer = 2.4;
-        this.boostStage = 2; // 顶级加速
-        this.speed = this.turboSpeed;
-        this.boostEvent = true;
-      }
-    });
-
-    // 2. 金币拾取检测
-    track.coins.forEach(coin => {
-      if (!coin.collected) {
-        const dist = Math.hypot(p.x - coin.originalPos.x, p.z - coin.originalPos.z);
-        if (dist < coin.radius) {
-          coin.collected = true;
-          coin.respawnTimer = 20.0; // 20秒后刷新
-          coin.mesh.visible = false;
-          if (this.coins < 10) this.coins++;
-          this.coinPickupEvent = coin.originalPos.clone();
+    // 1. 加速带
+    if (track.boostPads) {
+      track.boostPads.forEach(pad => {
+        const dist = Math.hypot(p.x - pad.position.x, p.z - pad.position.z);
+        if (dist < pad.radius) {
+          this.isBoosting = true;
+          this.boostTimer = 2.4;
+          this.boostStage = 2;
+          this.speed = this.turboSpeed;
+          this.boostEvent = true;
         }
-      }
-    });
+      });
+    }
 
-    // 3. 问号道具箱撞击检测
-    track.itemBoxes.forEach(box => {
-      if (box.active) {
-        const dist = Math.hypot(p.x - box.originalPos.x, p.z - box.originalPos.z);
-        if (dist < box.radius) {
-          box.active = false;
-          box.respawnTimer = 6.0;
-          box.group.visible = false;
-          this.hasItem = 'mushroom'; // 获得加速蘑菇
-          this.itemBoxPickupEvent = box.originalPos.clone();
+    // 2. 金币拾取
+    if (track.coins) {
+      track.coins.forEach(coin => {
+        if (!coin.collected) {
+          const dist = Math.hypot(p.x - coin.originalPos.x, p.z - coin.originalPos.z);
+          if (dist < coin.radius) {
+            coin.collected = true;
+            coin.respawnTimer = 20.0;
+            coin.mesh.visible = false;
+            if (this.coins < 10) this.coins++;
+            this.coinPickupEvent = coin.originalPos.clone();
+          }
         }
-      }
-    });
+      });
+    }
+
+    // 3. 道具箱
+    if (track.itemBoxes) {
+      track.itemBoxes.forEach(box => {
+        if (box.active) {
+          const dist = Math.hypot(p.x - box.originalPos.x, p.z - box.originalPos.z);
+          if (dist < box.radius) {
+            box.active = false;
+            box.respawnTimer = 6.0;
+            box.group.visible = false;
+            this.hasItem = 'mushroom';
+            this.itemBoxPickupEvent = box.originalPos.clone();
+          }
+        }
+      });
+    }
   }
 
-  // 激活玩家持有的道具（如冲刺蘑菇）
+  // 激活道具
   useCurrentItem() {
     if (!this.hasItem) return false;
     if (this.hasItem === 'mushroom') {

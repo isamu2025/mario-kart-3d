@@ -26,9 +26,9 @@ class Game {
     this.currentCameraLookAt = new THREE.Vector3();
     this.cameraShake = 0;
 
-    // 游戏流程状态 ('COUNTDOWN', 'RACING', 'FINISHED')
+    // 流程状态 ('COUNTDOWN', 'RACING', 'FINISHED')
     this.gameState = 'COUNTDOWN';
-    this.countdownTimer = 3.8;
+    this.countdownTimer = 3.6;
     this.topSpeedEver = 0;
 
     // 输入捕获状态
@@ -71,7 +71,7 @@ class Game {
     this.scene = new THREE.Scene();
 
     const aspect = window.innerWidth / window.innerHeight;
-    this.camera = new THREE.PerspectiveCamera(62, aspect, 0.1, 1200);
+    this.camera = new THREE.PerspectiveCamera(62, aspect, 0.1, 1400);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -85,7 +85,7 @@ class Game {
     this.container.appendChild(this.renderer.domElement);
   }
 
-  // 2. 初始化各模块子系统
+  // 2. 初始化各模块子系统与摄像机初位
   initSubsystems() {
     this.environment = new Environment(this.scene);
     this.track = new Track(this.scene);
@@ -93,11 +93,31 @@ class Game {
     this.physics = new KartPhysics();
     this.particles = new ParticleSystem(this.scene);
 
-    // 初始位置放置在发车线
-    this.physics.resetToTrack(new THREE.Vector3(0, 0, -110), 0);
+    // 获取发车线精确起点与偏航角（正对宽阔大直道）
+    const start = this.track.getStartPosition();
+    this.physics.resetToTrack(start.position, start.yaw);
+
+    // 立即就位卡丁车与摄像机，杜绝镜头飞跃延迟
+    this.kart.update(this.physics, 0.016);
+
+    const camOffsetDistance = 6.8;
+    const camHeight = 3.2;
+    this.currentCameraPos.set(
+      start.position.x - Math.sin(start.yaw) * camOffsetDistance,
+      start.position.y + camHeight,
+      start.position.z - Math.cos(start.yaw) * camOffsetDistance
+    );
+    this.currentCameraLookAt.set(
+      start.position.x + Math.sin(start.yaw) * 4.0,
+      start.position.y + 1.3,
+      start.position.z + Math.cos(start.yaw) * 4.0
+    );
+
+    this.camera.position.copy(this.currentCameraPos);
+    this.camera.lookAt(this.currentCameraLookAt);
   }
 
-  // 3. 键盘与触屏输入事件绑定
+  // 3. 键盘与触屏输入绑定
   bindInputs() {
     const handleKey = (code, isDown) => {
       sound.resume();
@@ -146,7 +166,7 @@ class Game {
       handleKey(e.code, false);
     });
 
-    // 移动端多点触控绑定
+    // 移动端触屏按键
     const bindTouch = (id, keyName) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -215,7 +235,6 @@ class Game {
     }
   }
 
-  // 静音切换
   toggleMute() {
     sound.resume();
     const isMuted = sound.toggleMute();
@@ -225,7 +244,6 @@ class Game {
     }
   }
 
-  // 切换视角
   cycleCameraView() {
     this.cameraMode = (this.cameraMode + 1) % 3;
     const names = ['🎥 视角 (正常)', '🎥 视角 (远景)', '🎥 视角 (车前)'];
@@ -233,7 +251,6 @@ class Game {
     if (btn) btn.innerHTML = names[this.cameraMode];
   }
 
-  // 使用持有道具
   triggerUseItem() {
     if (this.physics.hasItem) {
       const used = this.physics.useCurrentItem();
@@ -246,9 +263,7 @@ class Game {
     }
   }
 
-  // 复位回赛道
   resetPlayerToTrack() {
-    // 找到最近的样条检查点
     const p = new THREE.Vector2(this.physics.position.x, this.physics.position.z);
     let nearestIdx = 0;
     let minDist = Infinity;
@@ -265,11 +280,10 @@ class Game {
     const dir = new THREE.Vector3().subVectors(nextPt, resetPt).normalize();
     const yaw = Math.atan2(dir.x, dir.z);
 
-    this.physics.resetToTrack(new THREE.Vector3(resetPt.x, 0, resetPt.z), yaw);
+    this.physics.resetToTrack(new THREE.Vector3(resetPt.x, 0.05, resetPt.z), yaw);
     this.showAlertBanner('🔄 赛车已复位', 1.0);
   }
 
-  // 发车倒计时流程
   startCountdown() {
     this.gameState = 'COUNTDOWN';
     this.countdownTimer = 3.6;
@@ -299,7 +313,6 @@ class Game {
     requestAnimationFrame(tick);
   }
 
-  // 弹出居中大幅横幅文字
   showAlertBanner(text, duration = 1.0) {
     if (!this.alertBanner) return;
     this.alertBanner.innerText = text;
@@ -310,12 +323,12 @@ class Game {
     }, duration * 1000);
   }
 
-  // 重启完整比赛
   restartGame() {
     const modal = document.getElementById('finish-modal');
     if (modal) modal.style.display = 'none';
 
-    this.physics.resetToTrack(new THREE.Vector3(0, 0, -110), 0);
+    const start = this.track.getStartPosition();
+    this.physics.resetToTrack(start.position, start.yaw);
     this.physics.currentLap = 1;
     this.physics.lapFinished = false;
     this.physics.lapTimer = 0;
@@ -326,7 +339,6 @@ class Game {
     this.startCountdown();
   }
 
-  // 完赛弹出胜利奖杯与战绩清单
   onRaceFinished() {
     this.gameState = 'FINISHED';
     sound.playVictory();
@@ -341,7 +353,6 @@ class Game {
     }
   }
 
-  // 格式化毫秒计时
   formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -349,23 +360,21 @@ class Game {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   }
 
-  // 5. 逐帧核心主循环
+  // 5. 核心帧渲染循环
   render() {
-    const delta = Math.min(0.05, this.clock.getDelta());
+    const rawDelta = this.clock.getDelta();
+    const delta = Math.max(0.001, Math.min(0.05, isNaN(rawDelta) ? 0.016 : rawDelta));
 
-    // 状态机处理
     if (this.gameState === 'COUNTDOWN') {
       this.countdownTimer -= delta;
-      // 允许玩家在发车线上空轰油门（街机惯例）
+      // 允许玩家在发车线上轻点油门试转
       const activeInputs = { ...this.inputs, left: false, right: false, drift: false };
-      // 锁死位移
       const oldPos = this.physics.position.clone();
       this.physics.update(activeInputs, this.track, delta);
       this.physics.position.copy(oldPos);
     } else if (this.gameState === 'RACING') {
       this.physics.update(this.inputs, this.track, delta);
 
-      // 圈数触发事件
       if (this.physics.lapEvent) {
         if (this.physics.lapEvent === 'new_lap') {
           if (this.physics.currentLap === 3) {
@@ -381,7 +390,6 @@ class Game {
         this.physics.lapEvent = null;
       }
     } else if (this.gameState === 'FINISHED') {
-      // 完赛后自动滑行制动并缓慢盘旋运镜
       this.inputs.throttle = false;
       this.inputs.brake = true;
       this.physics.update(this.inputs, this.track, delta);
@@ -393,7 +401,7 @@ class Game {
     this.kart.update(this.physics, delta);
     this.particles.update(delta);
 
-    // 碰撞音效与火花处理
+    // 碰撞音效与火花
     if (this.physics.collisionEvents.length > 0) {
       this.physics.collisionEvents.forEach(evt => {
         sound.playCrash(evt.intensity);
@@ -402,7 +410,7 @@ class Game {
       });
     }
 
-    // 拾取金币与道具事件
+    // 道具与金币事件
     if (this.physics.coinPickupEvent) {
       sound.playCoin();
       this.particles.emitCoinBurst(this.physics.coinPickupEvent);
@@ -420,18 +428,18 @@ class Game {
       this.physics.boostEvent = null;
     }
 
-    // 粒子发射：排气烟雾与漂移火花
+    // 粒子发射：排气与漂移火花
     this._handleParticleEmissions(delta);
 
-    // 音频动态调节（引擎音与漂移胎噪）
+    // 音频动态合成（引擎与胎噪）
     const speedRatio = this.physics.speed / this.physics.maxSpeed;
     sound.updateEngine(speedRatio, this.inputs.throttle, this.inputs.brake);
     sound.updateDriftSound(this.physics.isDrifting ? 1.0 : (this.inputs.brake && Math.abs(this.physics.speed) > 10 ? 0.7 : 0.0));
 
-    // 摄像机平滑追尾与动态 FOV
+    // 摄像机平滑跟踪
     this.updateCamera(delta);
 
-    // 同步更新 2D 小地图雷达与 HUD
+    // 同步 2D 小地图与 HUD
     this.drawMinimap();
     this.updateHUD();
 
@@ -439,9 +447,7 @@ class Game {
     requestAnimationFrame(() => this.render());
   }
 
-  // 粒子发射逻辑
   _handleParticleEmissions(delta) {
-    // 1. 排气尾烟（正常行驶中每 0.08 秒喷一团）
     this._smokeTimer = (this._smokeTimer || 0) + delta;
     if (this._smokeTimer > 0.06 && Math.abs(this.physics.speed) > 2.0) {
       this._smokeTimer = 0;
@@ -450,7 +456,6 @@ class Game {
       exhausts.forEach(p => this.particles.emitExhaustSmoke(p, carDir));
     }
 
-    // 2. 漂移火花（蓝火 / 橙火）
     if (this.physics.isDrifting && this.physics.driftStage > 0) {
       const wheels = this.kart.getRearWheelPositions();
       const isStage2 = this.physics.driftStage === 2;
@@ -458,19 +463,16 @@ class Game {
     }
   }
 
-  // 摄像机弹性阻尼跟踪系统
   updateCamera(delta) {
     const carPos = this.physics.position;
-    const yaw = this.physics.yaw;
+    const yaw = isNaN(this.physics.yaw) ? 0 : this.physics.yaw;
     const speedKmh = Math.abs(this.physics.speed * 3.6);
 
-    // 动态 FOV（高速与加速带下镜头广角拉伸，极具速度压迫感）
     let targetFov = 62 + (speedKmh / 220) * 18;
     if (this.physics.isBoosting) targetFov += 10;
     this.camera.fov += (targetFov - this.camera.fov) * 8.0 * delta;
     this.camera.updateProjectionMatrix();
 
-    // 镜头抖动衰减
     let shakeOffset = new THREE.Vector3();
     if (this.cameraShake > 0) {
       shakeOffset.set(
@@ -482,23 +484,19 @@ class Game {
       if (this.cameraShake < 0) this.cameraShake = 0;
     }
 
-    // 目标摄像机坐标与视线焦点
     let camOffsetDistance = 6.8;
     let camHeight = 3.2;
     let lookHeight = 1.3;
 
     if (this.cameraMode === 1) {
-      // 远景视角
       camOffsetDistance = 10.5;
       camHeight = 5.0;
     } else if (this.cameraMode === 2) {
-      // 第一人称车前盖视角
       camOffsetDistance = -0.5;
       camHeight = 1.4;
       lookHeight = 1.2;
     }
 
-    // 摄像机放置在赛车车身后上方
     const targetCamX = carPos.x - Math.sin(yaw) * camOffsetDistance;
     const targetCamZ = carPos.z - Math.cos(yaw) * camOffsetDistance;
     const targetCamY = carPos.y + camHeight;
@@ -507,7 +505,6 @@ class Game {
     const targetLookAtZ = carPos.z + Math.cos(yaw) * 4.0;
     const targetLookAtY = carPos.y + lookHeight;
 
-    // 弹簧平滑阻尼插值 (Lerp)
     const lerpSpeed = this.cameraMode === 2 ? 25.0 : 8.5;
     this.currentCameraPos.x += (targetCamX - this.currentCameraPos.x) * lerpSpeed * delta;
     this.currentCameraPos.y += (targetCamY - this.currentCameraPos.y) * lerpSpeed * delta;
@@ -521,7 +518,6 @@ class Game {
     this.camera.lookAt(this.currentCameraLookAt);
   }
 
-  // 实时 2D 小地图雷达绘制
   drawMinimap() {
     if (!this.minimapCtx) return;
     const ctx = this.minimapCtx;
@@ -530,14 +526,13 @@ class Game {
 
     ctx.clearRect(0, 0, w, h);
 
-    // 赛道映射缩放比例 (赛道范围约 -150 到 150)
-    const scale = 0.42;
+    const scale = 0.40;
     const cx = w / 2;
     const cy = h / 2;
 
-    // 1. 绘制灰色赛道基底轮廓
+    // 1. 赛道轮廓
     ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 9;
+    ctx.lineWidth = 10;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -550,19 +545,19 @@ class Game {
     ctx.closePath();
     ctx.stroke();
 
-    // 2. 绘制金色赛道路面中心线
+    // 2. 赛道中心金线
     ctx.strokeStyle = '#fbc02d';
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // 3. 绘制起终点黑白指示点
+    // 3. 起终点方格标志
     const startP = this.track.curvePoints[0];
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(cx + startP.x * scale, cy + startP.z * scale, 3.5, 0, Math.PI * 2);
+    ctx.arc(cx + startP.x * scale, cy + startP.z * scale, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // 4. 绘制玩家卡丁车红色定位小圆点与朝向指针
+    // 4. 自车红色定位指针
     const pX = cx + this.physics.position.x * scale;
     const pZ = cy + this.physics.position.z * scale;
 
@@ -570,12 +565,11 @@ class Game {
     ctx.translate(pX, pZ);
     ctx.rotate(this.physics.yaw);
 
-    // 自车三角形车标
     ctx.fillStyle = '#ff1744';
     ctx.beginPath();
-    ctx.moveTo(0, 6);
-    ctx.lineTo(-4, -5);
-    ctx.lineTo(4, -5);
+    ctx.moveTo(0, 7);
+    ctx.lineTo(-4.5, -6);
+    ctx.lineTo(4.5, -6);
     ctx.closePath();
     ctx.fill();
 
@@ -586,7 +580,6 @@ class Game {
     ctx.restore();
   }
 
-  // 同步更新各类 HUD 文字与能量进度条
   updateHUD() {
     const speedKmh = Math.round(Math.abs(this.physics.speed * 3.6));
     if (speedKmh > this.topSpeedEver) this.topSpeedEver = speedKmh;
@@ -596,7 +589,6 @@ class Game {
     if (this.hudTimer) this.hudTimer.innerText = this.formatTime(this.physics.lapTimer);
     if (this.hudCoins) this.hudCoins.innerText = this.physics.coins.toString().padStart(2, '0');
 
-    // 漂移蓄力能量槽
     if (this.hudTurboBar) {
       let pct = 0;
       if (this.physics.isDrifting) {
@@ -608,13 +600,12 @@ class Game {
     }
   }
 
-  // 更新道具显示插槽
   updateItemHUD() {
     if (!this.hudItem) return;
     if (this.physics.hasItem === 'mushroom') {
       this.hudItem.classList.remove('item-empty');
       this.hudItemIcon.innerText = '🍄';
-      this.hudItem.style.boxShadow = '0 0 20px #ff3d00';
+      this.hudItem.style.boxShadow = '0 0 22px #ff3d00';
     } else {
       this.hudItem.classList.add('item-empty');
       this.hudItemIcon.innerText = '?';
@@ -622,7 +613,6 @@ class Game {
     }
   }
 
-  // 窗口尺寸自适应
   onResize() {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -632,7 +622,6 @@ class Game {
   }
 }
 
-// 启动游戏实例
 window.addEventListener('DOMContentLoaded', () => {
   new Game();
 });

@@ -15,7 +15,6 @@ export class Environment {
 
   // 1. 晴朗高远蓝天穹顶
   initSky() {
-    // 渐变天空球
     const vertexShader = `
       varying vec3 vWorldPosition;
       void main() {
@@ -39,7 +38,7 @@ export class Environment {
 
     const uniforms = {
       topColor: { value: new THREE.Color(0x1976d2) },    // 蔚蓝高空
-      bottomColor: { value: new THREE.Color(0xbbdefb) }, // 地平线柔和浅天蓝
+      bottomColor: { value: new THREE.Color(0xbbdefb) }, // 地平线浅天蓝
       offset: { value: 33 },
       exponent: { value: 0.6 }
     };
@@ -58,15 +57,11 @@ export class Environment {
 
     // 视觉太阳光轮
     const sunGeo = new THREE.SphereGeometry(18, 16, 16);
-    const sunMat = new THREE.MeshBasicMaterial({
-      color: 0xfff9c4,
-      fog: false
-    });
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff9c4, fog: false });
     this.sunMesh = new THREE.Mesh(sunGeo, sunMat);
     this.sunMesh.position.set(220, 260, -280);
     this.scene.add(this.sunMesh);
 
-    // 太阳发光外光晕
     const glowGeo = new THREE.SphereGeometry(35, 16, 16);
     const glowMat = new THREE.MeshBasicMaterial({
       color: 0xffecb3,
@@ -78,14 +73,12 @@ export class Environment {
     this.sunMesh.add(glowMesh);
   }
 
-  // 2. 阳光与自然环境光
+  // 2. 暖阳与自然天光
   initLights() {
-    // 半球光：模拟天空天光与草地绿意反射
     const hemiLight = new THREE.HemisphereLight(0x90caf9, 0xa5d6a7, 0.75);
     hemiLight.position.set(0, 200, 0);
     this.scene.add(hemiLight);
 
-    // 暖色平行日光与高精度柔和阴影
     this.dirLight = new THREE.DirectionalLight(0xfff8e1, 1.8);
     this.dirLight.position.set(220, 260, -280);
     this.dirLight.castShadow = true;
@@ -105,12 +98,11 @@ export class Environment {
     this.scene.add(this.dirLight);
     this.scene.add(this.dirLight.target);
 
-    // 环境微光填充暗部细节
     const ambient = new THREE.AmbientLight(0xffffff, 0.4);
     this.scene.add(ambient);
   }
 
-  // 3. 蓬松可爱的 3D 体积白云系统
+  // 3. 蓬松 3D 白云系统
   initClouds() {
     const cloudMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -119,7 +111,6 @@ export class Environment {
       flatShading: true
     });
 
-    // 生成一组由不同大小球体簇合成的立体白云
     for (let c = 0; c < 22; c++) {
       const cloudGroup = new THREE.Group();
       const numPuffs = 5 + Math.floor(Math.random() * 5);
@@ -137,15 +128,12 @@ export class Environment {
         cloudGroup.add(puff);
       }
 
-      // 广阔高空随机分布
       const x = (Math.random() - 0.5) * 600;
       const y = 85 + Math.random() * 65;
       const z = (Math.random() - 0.5) * 600;
 
       cloudGroup.position.set(x, y, z);
-      cloudGroup.userData = {
-        speed: 1.5 + Math.random() * 2.5
-      };
+      cloudGroup.userData = { speed: 1.5 + Math.random() * 2.5 };
 
       this.scene.add(cloudGroup);
       this.clouds.push(cloudGroup);
@@ -154,16 +142,13 @@ export class Environment {
 
   // 4. 周边群山与马里奥风格红白蘑菇风景
   initLandscape() {
-    // 宽阔翠绿地表
     const groundGeo = new THREE.PlaneGeometry(900, 900, 32, 32);
-    // 随机微起伏
     const pos = groundGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const vx = pos.getX(i);
       const vy = pos.getY(i);
-      // 距离赛道中心区域平整，远端平缓起伏
       const dist = Math.sqrt(vx * vx + vy * vy);
-      if (dist > 90) {
+      if (dist > 110) {
         const wave = Math.sin(vx * 0.03) * Math.cos(vy * 0.03) * 6.5;
         pos.setZ(i, wave);
       }
@@ -171,7 +156,7 @@ export class Environment {
     groundGeo.computeVertexNormals();
 
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x558b2f, // 活力草地绿
+      color: 0x558b2f,
       roughness: 0.85,
       metalness: 0.05
     });
@@ -182,26 +167,20 @@ export class Environment {
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    // 远方马里奥风格圆润绿丘
     this._createCartoonHills();
-
-    // 沿途马里奥经典红白波点蘑菇与树木
     this._createMushroomDecorations();
   }
 
   _createCartoonHills() {
-    const hillMat = new THREE.MeshStandardMaterial({
-      color: 0x689f38,
-      roughness: 0.8
-    });
+    const hillMat = new THREE.MeshStandardMaterial({ color: 0x689f38, roughness: 0.8 });
 
     const hillPositions = [
-      { x: -180, z: -150, r: 70, h: 45 },
-      { x: 190, z: -160, r: 85, h: 55 },
-      { x: 210, z: 140, r: 65, h: 40 },
-      { x: -190, z: 160, r: 80, h: 48 },
-      { x: 0, z: -230, r: 90, h: 50 },
-      { x: 0, z: 240, r: 85, h: 45 }
+      { x: -190, z: -170, r: 75, h: 48 },
+      { x: 210, z: -170, r: 85, h: 55 },
+      { x: 230, z: 150, r: 70, h: 42 },
+      { x: -210, z: 170, r: 80, h: 50 },
+      { x: 0, z: -250, r: 90, h: 52 },
+      { x: 0, z: 250, r: 90, h: 48 }
     ];
 
     hillPositions.forEach(p => {
@@ -215,31 +194,28 @@ export class Environment {
   }
 
   _createMushroomDecorations() {
-    // 经典马里奥红伞白点蘑菇
+    // 蘑菇均放置在赛道两侧足够远的安全区域（杜绝误侵入车道）
     const mushroomPositions = [
-      { x: -65, z: -40, s: 1.4 },
-      { x: 70, z: 50, s: 1.8 },
-      { x: -75, z: 60, s: 1.2 },
-      { x: 80, z: -70, s: 1.6 },
-      { x: -110, z: -90, s: 2.2 },
-      { x: 115, z: 95, s: 2.0 },
-      { x: -20, z: -100, s: 1.5 },
-      { x: 30, z: 110, s: 1.7 }
+      { x: -45, z: -40, s: 1.5 },
+      { x: 45, z: 40, s: 1.8 },
+      { x: -65, z: 85, s: 1.6 },
+      { x: 80, z: -80, s: 1.7 },
+      { x: -145, z: 10, s: 2.2 },
+      { x: 170, z: 40, s: 2.0 },
+      { x: -40, z: -145, s: 1.6 },
+      { x: 50, z: 175, s: 1.8 }
     ];
 
     mushroomPositions.forEach(m => {
       const group = new THREE.Group();
 
-      // 白茎
       const stemGeo = new THREE.CylinderGeometry(1.2, 1.5, 4.5, 12);
       const stemMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
       const stem = new THREE.Mesh(stemGeo, stemMat);
       stem.position.y = 2.25;
       stem.castShadow = true;
-      stem.receiveShadow = true;
       group.add(stem);
 
-      // 红盖
       const capGeo = new THREE.SphereGeometry(3.2, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55);
       const capMat = new THREE.MeshStandardMaterial({ color: 0xe53935, roughness: 0.4 });
       const cap = new THREE.Mesh(capGeo, capMat);
@@ -248,14 +224,12 @@ export class Environment {
       cap.castShadow = true;
       group.add(cap);
 
-      // 顶部白圆点
       const spotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       const spot1 = new THREE.Mesh(new THREE.CircleGeometry(0.85, 12), spotMat);
       spot1.position.set(0, 6.7, 0);
       spot1.rotation.x = -Math.PI / 2;
       group.add(spot1);
 
-      // 侧面白圆点
       for (let i = 0; i < 4; i++) {
         const spot = new THREE.Mesh(new THREE.CircleGeometry(0.7, 12), spotMat);
         const angle = (i * Math.PI) / 2;
@@ -270,15 +244,13 @@ export class Environment {
       this.scene.add(group);
     });
 
-    // 搭配可爱的卡通圆球绿树
     const treePositions = [
-      { x: -50, z: -80 }, { x: 55, z: -95 }, { x: -85, z: 20 },
-      { x: 90, z: -30 }, { x: -35, z: 85 }, { x: 60, z: 80 }
+      { x: -50, z: -85 }, { x: 55, z: -85 }, { x: -85, z: 20 },
+      { x: 85, z: -30 }, { x: -35, z: 85 }, { x: 60, z: 80 }
     ];
 
     treePositions.forEach(t => {
       const tree = new THREE.Group();
-      // 树干
       const trunk = new THREE.Mesh(
         new THREE.CylinderGeometry(0.5, 0.7, 4, 8),
         new THREE.MeshStandardMaterial({ color: 0x795548, roughness: 0.9 })
@@ -287,7 +259,6 @@ export class Environment {
       trunk.castShadow = true;
       tree.add(trunk);
 
-      // 圆球树冠
       const leaves = new THREE.Mesh(
         new THREE.DodecahedronGeometry(2.8, 1),
         new THREE.MeshStandardMaterial({ color: 0x43a047, roughness: 0.7, flatShading: true })
@@ -301,9 +272,7 @@ export class Environment {
     });
   }
 
-  // 逐帧更新白云漂移与太阳光追随
   update(delta, playerPos) {
-    // 白云缓慢飘动
     this.clouds.forEach(cloud => {
       cloud.position.x += cloud.userData.speed * delta;
       if (cloud.position.x > 320) {
@@ -311,7 +280,6 @@ export class Environment {
       }
     });
 
-    // 日光阴影摄像机跟随赛车移动，保持阴影贴图清晰度
     if (playerPos && this.dirLight) {
       this.dirLight.target.position.copy(playerPos);
       this.dirLight.position.set(

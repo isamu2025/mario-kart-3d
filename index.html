@@ -30,9 +30,13 @@
       <span id="hud-item-icon">?</span>
     </div>
 
-    <!-- 金币计数 -->
+    <!-- 金币计数（高精度矢量SVG金币图标，彻底告别字符缺失方框） -->
     <div class="hud-panel coin-box">
-      <span>🪙</span>
+      <svg width="26" height="26" viewBox="0 0 24 24" style="filter: drop-shadow(0 0 5px #ffd700);">
+        <circle cx="12" cy="12" r="10" fill="#ffd700" stroke="#ff8f00" stroke-width="2"/>
+        <circle cx="12" cy="12" r="7" fill="none" stroke="#fff9c4" stroke-width="1.4"/>
+        <rect x="10.5" y="7.5" width="3" height="9" rx="1.5" fill="#ff8f00"/>
+      </svg>
       <span id="hud-coins">00</span>
     </div>
 
