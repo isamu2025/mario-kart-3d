@@ -173,10 +173,9 @@ export class KartPhysics {
     this.steerAngle += (targetSteerAngle - this.steerAngle) * 12.0 * delta;
     if (isNaN(this.steerAngle)) this.steerAngle = 0;
 
-    // 【核心修复】：纠正左右转向符号！
-    // 当按 D/右键时 rawSteer=+1，必须使偏航角 yaw 减小以向屏幕右侧(-X)转动；
-    // 当按 A/左键时 rawSteer=-1，必须使偏航角 yaw 增大以向屏幕左侧(+X)转动。
-    let effectiveTurn = -this.steerAngle * this.turnRate * steerSens;
+    // 低速转向自然衰减（车辆静止时不可原地如坦克般空转）
+    const speedFactor = Math.min(1.0, Math.abs(this.speed) / 2.5);
+    let effectiveTurn = -this.steerAngle * this.turnRate * steerSens * speedFactor;
     if (this.speed < 0) effectiveTurn = -effectiveTurn; // 倒车反打
     this.yaw += effectiveTurn * delta;
     if (isNaN(this.yaw)) this.yaw = 0;
@@ -270,6 +269,13 @@ export class KartPhysics {
 
             this.speed = Math.sign(this.speed) * Math.min(Math.abs(this.speed) * 0.75, this.velocity.length());
 
+            // 撞墙防吸附死锁：将偏航角 yaw 微调偏离法线方向，顺滑沿路面脱离
+            const wallYaw = Math.atan2(nx, nz);
+            let yawDiff = wallYaw - this.yaw;
+            while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+            while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+            this.yaw += yawDiff * 0.15;
+
             if (this.coins > 0 && Math.random() < 0.2) {
               this.coins = Math.max(0, this.coins - 1);
             }
@@ -290,26 +296,31 @@ export class KartPhysics {
     const p = new THREE.Vector2(this.position.x, this.position.z);
     const numCp = track.checkpoints.length;
 
-    const nextCpIdx = (this.lastCheckpoint + 1) % numCp;
-    const nextCp = track.checkpoints[nextCpIdx];
+    // 容纳弯道高速切弯，检测当前及后续 1~3 个检查点
+    for (let offset = 1; offset <= 3; offset++) {
+      const candidateIdx = (this.lastCheckpoint + offset) % numCp;
+      const nextCp = track.checkpoints[candidateIdx];
+      const dist = p.distanceTo(nextCp.position);
 
-    const dist = p.distanceTo(nextCp.position);
-    if (dist < nextCp.radius) {
-      this.lastCheckpoint = nextCpIdx;
+      if (dist < nextCp.radius) {
+        const wasPastHalf = this.lastCheckpoint >= Math.floor(numCp * 0.55);
+        this.lastCheckpoint = candidateIdx;
 
-      if (nextCpIdx === 0 && this.lastCheckpoint === 0) {
-        if (!this.bestLapTime || this.lapTimer < this.bestLapTime) {
-          this.bestLapTime = this.lapTimer;
+        if (candidateIdx === 0 && wasPastHalf) {
+          if (!this.bestLapTime || this.lapTimer < this.bestLapTime) {
+            this.bestLapTime = this.lapTimer;
+          }
+          this.lapTimer = 0;
+
+          if (this.currentLap < this.totalLaps) {
+            this.currentLap++;
+            this.lapEvent = 'new_lap';
+          } else {
+            this.lapFinished = true;
+            this.lapEvent = 'race_finished';
+          }
         }
-        this.lapTimer = 0;
-
-        if (this.currentLap < this.totalLaps) {
-          this.currentLap++;
-          this.lapEvent = 'new_lap';
-        } else {
-          this.lapFinished = true;
-          this.lapEvent = 'race_finished';
-        }
+        break;
       }
     }
   }

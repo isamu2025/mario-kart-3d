@@ -142,17 +142,8 @@ export class Environment {
 
   // 4. 周边群山与马里奥风格红白蘑菇风景
   initLandscape() {
-    const groundGeo = new THREE.PlaneGeometry(900, 900, 32, 32);
-    const pos = groundGeo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const vx = pos.getX(i);
-      const vy = pos.getY(i);
-      const dist = Math.sqrt(vx * vx + vy * vy);
-      if (dist > 110) {
-        const wave = Math.sin(vx * 0.03) * Math.cos(vy * 0.03) * 6.5;
-        pos.setZ(i, wave);
-      }
-    }
+    // 平整赛场主草坪，杜绝草皮波浪上涌遮挡赛道柏油与防护墙
+    const groundGeo = new THREE.PlaneGeometry(1000, 1000, 8, 8);
     groundGeo.computeVertexNormals();
 
     const groundMat = new THREE.MeshStandardMaterial({
@@ -201,9 +192,9 @@ export class Environment {
       { x: -65, z: 85, s: 1.6 },
       { x: 80, z: -80, s: 1.7 },
       { x: -145, z: 10, s: 2.2 },
-      { x: 170, z: 40, s: 2.0 },
+      { x: 210, z: 40, s: 2.0 },   // 移至东外侧 210m，彻底远离 165m 赛道
       { x: -40, z: -145, s: 1.6 },
-      { x: 50, z: 175, s: 1.8 }
+      { x: 50, z: 185, s: 1.8 }
     ];
 
     mushroomPositions.forEach(m => {

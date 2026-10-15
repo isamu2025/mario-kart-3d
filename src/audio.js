@@ -413,9 +413,7 @@ class SoundSystem {
 
   _playHiHat(time) {
     if (!this.ctx) return;
-    const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = 'highpass';
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'highpass';
     filter.frequency.setValueAtTime(8000, time);

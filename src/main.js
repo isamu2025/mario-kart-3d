@@ -166,25 +166,26 @@ class Game {
       handleKey(e.code, false);
     });
 
-    // 移动端触屏按键
+    // 移动端触屏按键（通过 setPointerCapture 锁定触控，防止手指微移触发 pointerleave 丢失油门/转向）
     const bindTouch = (id, keyName) => {
       const el = document.getElementById(id);
       if (!el) return;
       const start = (ev) => {
         ev.preventDefault();
+        try { el.setPointerCapture(ev.pointerId); } catch(e) {}
         sound.resume();
         this.inputs[keyName] = true;
         el.classList.add('pressed');
       };
       const end = (ev) => {
         ev.preventDefault();
+        try { el.releasePointerCapture(ev.pointerId); } catch(e) {}
         this.inputs[keyName] = false;
         el.classList.remove('pressed');
       };
       el.addEventListener('pointerdown', start);
       el.addEventListener('pointerup', end);
       el.addEventListener('pointercancel', end);
-      el.addEventListener('pointerleave', end);
     };
 
     bindTouch('touch-left', 'left');
@@ -281,6 +282,25 @@ class Game {
     const yaw = Math.atan2(dir.x, dir.z);
 
     this.physics.resetToTrack(new THREE.Vector3(resetPt.x, 0.05, resetPt.z), yaw);
+
+    // 摄像机平滑吸附到复位点正后方，杜绝跨地图瞬间拉扯飞跃
+    const camOffset = this.cameraMode === 1 ? 10.5 : (this.cameraMode === 2 ? -0.5 : 6.8);
+    const camHeight = this.cameraMode === 1 ? 5.0 : (this.cameraMode === 2 ? 1.4 : 3.2);
+    const lookHeight = this.cameraMode === 2 ? 1.2 : 1.3;
+
+    this.currentCameraPos.set(
+      resetPt.x - Math.sin(yaw) * camOffset,
+      0.05 + camHeight,
+      resetPt.z - Math.cos(yaw) * camOffset
+    );
+    this.currentCameraLookAt.set(
+      resetPt.x + Math.sin(yaw) * 4.0,
+      0.05 + lookHeight,
+      resetPt.z + Math.cos(yaw) * 4.0
+    );
+    this.camera.position.copy(this.currentCameraPos);
+    this.camera.lookAt(this.currentCameraLookAt);
+
     this.showAlertBanner('🔄 赛车已复位', 1.0);
   }
 
@@ -537,14 +557,14 @@ class Game {
     const trackCenterX = 82.5;
     const trackCenterZ = 7.5;
 
-    // 1. 赛道轮廓（反转 X 轴使小地图左右与车手主视角第一/第三人称左右一致）
+    // 1. 赛道俯视雷达轮廓 (标准一致性俯视坐标系)
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 10;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
     this.track.curvePoints.forEach((p, idx) => {
-      const mx = cx - (p.x - trackCenterX) * scale;
+      const mx = cx + (p.x - trackCenterX) * scale;
       const my = cy + (p.z - trackCenterZ) * scale;
       if (idx === 0) ctx.moveTo(mx, my);
       else ctx.lineTo(mx, my);
@@ -561,16 +581,16 @@ class Game {
     const startP = this.track.curvePoints[0];
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(cx - (startP.x - trackCenterX) * scale, cy + (startP.z - trackCenterZ) * scale, 4, 0, Math.PI * 2);
+    ctx.arc(cx + (startP.x - trackCenterX) * scale, cy + (startP.z - trackCenterZ) * scale, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // 4. 自车红色定位指针（旋转角 -yaw 与反转后的 X 轴镜像对应）
-    const pX = cx - (this.physics.position.x - trackCenterX) * scale;
+    // 4. 自车红色定位指针（旋转角 yaw 与赛道运动轨迹完全同向）
+    const pX = cx + (this.physics.position.x - trackCenterX) * scale;
     const pZ = cy + (this.physics.position.z - trackCenterZ) * scale;
 
     ctx.save();
     ctx.translate(pX, pZ);
-    ctx.rotate(-this.physics.yaw);
+    ctx.rotate(this.physics.yaw);
 
     ctx.fillStyle = '#ff1744';
     ctx.beginPath();

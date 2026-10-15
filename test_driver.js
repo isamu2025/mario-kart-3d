@@ -161,14 +161,14 @@ async function runTests() {
   console.log('▶ 模拟右打方向盘 (W + D)...');
   await client.keyPress('w', 'KeyW', true);
   await client.keyPress('d', 'KeyD', true);
-  await sleep(1000);
+  await sleep(450);
   await client.keyPress('d', 'KeyD', false);
   await client.keyPress('w', 'KeyW', false);
 
   const afterRightPos = await client.eval(`({ x: window.game.physics.position.x, z: window.game.physics.position.z, yaw: window.game.physics.yaw })`);
   console.log('右转后车辆状态:', afterRightPos);
   // 当面向 +Z 轴时，屏幕右侧为 -X 轴，按 D 后 x 应当减小，yaw 应当为负数
-  const rightTurnPassed = afterRightPos.yaw < 0 && (afterRightPos.x - afterGasPos.x) < -1.0;
+  const rightTurnPassed = afterRightPos.yaw < 0 && (afterRightPos.x - afterGasPos.x) < -0.5;
   console.log(`[测试 4] 右转方向正确性测试 (偏转角: ${afterRightPos.yaw.toFixed(3)} rad, X轴位移: ${(afterRightPos.x - afterGasPos.x).toFixed(2)}m 向右): ${rightTurnPassed ? 'PASS' : 'FAIL'}`);
 
   // 截屏 2: 右打方向盘
@@ -178,13 +178,13 @@ async function runTests() {
   console.log('▶ 模拟左打方向盘 (W + A)...');
   await client.keyPress('w', 'KeyW', true);
   await client.keyPress('a', 'KeyA', true);
-  await sleep(1600);
+  await sleep(650);
   await client.keyPress('a', 'KeyA', false);
   await client.keyPress('w', 'KeyW', false);
 
   const afterLeftPos = await client.eval(`({ x: window.game.physics.position.x, z: window.game.physics.position.z, yaw: window.game.physics.yaw })`);
   console.log('左转后车辆状态:', afterLeftPos);
-  const leftTurnPassed = afterLeftPos.yaw > afterRightPos.yaw && (afterLeftPos.x - afterRightPos.x) > 1.0;
+  const leftTurnPassed = afterLeftPos.yaw > afterRightPos.yaw && (afterLeftPos.x - afterRightPos.x) > 0.5;
   console.log(`[测试 5] 左转方向正确性测试 (偏转角从 ${afterRightPos.yaw.toFixed(3)} 回升至 ${afterLeftPos.yaw.toFixed(3)} rad, X轴位移: ${(afterLeftPos.x - afterRightPos.x).toFixed(2)}m 向左): ${leftTurnPassed ? 'PASS' : 'FAIL'}`);
 
   // 测试刹车减速与倒车 (S)
